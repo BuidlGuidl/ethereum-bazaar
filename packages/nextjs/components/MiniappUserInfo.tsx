@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useMiniapp } from "~~/components/MiniappProvider";
 
 export const MiniappUserInfo = () => {
@@ -18,15 +17,8 @@ export const MiniappUserInfo = () => {
           <p className="text-xs">FID: {user.fid}</p>
           {user.username && <p className="text-xs">Username: {user.username}</p>}
           {user.displayName && <p className="text-xs">Display Name: {user.displayName}</p>}
-          {user.pfpUrl && (
-            <Image
-              src={user.pfpUrl}
-              alt="Profile"
-              width={32}
-              height={32}
-              className="w-8 h-8 rounded-full mx-auto mt-1"
-            />
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {user.pfpUrl && <img src={user.pfpUrl} alt="Profile" className="w-8 h-8 rounded-full mx-auto mt-1" />}
         </div>
       )}
     </div>

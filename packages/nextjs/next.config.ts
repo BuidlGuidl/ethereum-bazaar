@@ -26,4 +26,35 @@ if (isIpfs) {
   };
 }
 
+if (!isIpfs) {
+  const defaultHosts = [
+    { hostname: "gateway.pinata.cloud", pathname: "/ipfs/**" },
+    { hostname: "ipfs.io", pathname: "/ipfs/**" },
+    { hostname: "cloudflare-ipfs.com", pathname: "/ipfs/**" },
+    { hostname: "w3s.link", pathname: "/ipfs/**" },
+    { hostname: "nftstorage.link", pathname: "/ipfs/**" },
+    { hostname: "imagedelivery.net", pathname: "/**" },
+  ];
+  const remotePatterns: { protocol: "http" | "https"; hostname: string; pathname: string }[] = [];
+  for (const h of defaultHosts) {
+    remotePatterns.push({ protocol: "https", hostname: h.hostname, pathname: h.pathname });
+  }
+  const pinataEnv = process.env.NEXT_PUBLIC_PINATA_GATEWAY;
+  if (pinataEnv) {
+    try {
+      const u = new URL(pinataEnv);
+      if (!remotePatterns.some(r => r.hostname === u.hostname)) {
+        remotePatterns.push({
+          protocol: u.protocol.replace(":", "") as "http" | "https",
+          hostname: u.hostname,
+          pathname: "/ipfs/**",
+        });
+      }
+    } catch {
+      // ignore invalid env value
+    }
+  }
+  nextConfig.images = { remotePatterns } as any;
+}
+
 module.exports = nextConfig;

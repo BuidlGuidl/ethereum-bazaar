@@ -2,18 +2,17 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { Cormorant_Garamond } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { NextPage } from "next";
-import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { MiniappUserInfo } from "~~/components/MiniappUserInfo";
-import { Address } from "~~/components/scaffold-eth";
 
 const MapRadius = dynamic(() => import("~~/components/marketplace/MapRadiusGL"), { ssr: false });
 
+const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"] });
+
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -40,26 +39,33 @@ const Home: NextPage = () => {
     try {
       const suppress = searchParams?.get("home") === "1";
       if (suppress) return;
-      const stored = localStorage.getItem("marketplace.defaultLocation");
-      if (stored) {
-        // verify the location still exists before redirecting
-        fetch(`/api/locations/${stored}`)
-          .then(async res => {
-            if (res.ok) {
-              router.replace(`/location/${stored}`);
-            } else {
+      const raw = localStorage.getItem("marketplace.defaultLocationData");
+      if (raw) {
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {}
+        const id = parsed?.id as string | undefined;
+        if (id) {
+          // verify the location still exists before redirecting
+          fetch(`/api/locations/${id}`)
+            .then(async res => {
+              if (res.ok) {
+                router.replace(`/location/${id}`);
+              } else {
+                try {
+                  localStorage.removeItem("marketplace.defaultLocationData");
+                } catch {}
+                router.replace(`/?home=1`);
+              }
+            })
+            .catch(() => {
               try {
-                localStorage.removeItem("marketplace.defaultLocation");
+                localStorage.removeItem("marketplace.defaultLocationData");
               } catch {}
               router.replace(`/?home=1`);
-            }
-          })
-          .catch(() => {
-            try {
-              localStorage.removeItem("marketplace.defaultLocation");
-            } catch {}
-            router.replace(`/?home=1`);
-          });
+            });
+        }
       }
     } catch {}
   }, [router, searchParams]);
@@ -69,22 +75,30 @@ const Home: NextPage = () => {
       <div className="flex items-center flex-col grow pt-10">
         <div className="px-5 w-full max-w-5xl">
           <div className="flex items-center justify-between">
-            <h1 className="text-center flex-1">
-              <span className="block text-2xl mb-2">Welcome to</span>
-              <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-              <span className="block text-xl font-bold">(miniapp extension)</span>
-            </h1>
+            <div className="flex-1">
+              <div className="lg:hidden flex items-center gap-2">
+                <Image
+                  alt="Ethereum Bazaar logo"
+                  width={64}
+                  height={64}
+                  className="shrink-0 -mx-3"
+                  src="/ethereum-bazaar-logo.svg"
+                />
+                <div className="flex flex-col">
+                  <span
+                    className={`${cormorant.className} font-semibold leading-tight text-xl tracking-[0.01em] text-primary`}
+                  >
+                    Ethereum Bazaar
+                  </span>
+                  <span className="text-xs text-neutral/80">A peer to peer marketplace</span>
+                </div>
+              </div>
+              <div className="hidden lg:block" aria-hidden="true" />
+            </div>
             <Link href="/location/new" className="btn btn-primary">
               Create location
             </Link>
           </div>
-          <div className="flex justify-center items-center space-x-2 flex-col">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address address={connectedAddress} />
-          </div>
-
-          {/* MiniApp User Info */}
-          <MiniappUserInfo />
           <div className="my-6">
             <div className="w-full flex items-center gap-2">
               <input
@@ -99,7 +113,7 @@ const Home: NextPage = () => {
             {locations.map(l => (
               <button
                 key={l.id}
-                className="card bg-base-100 border border-base-300 hover:border-primary/60 transition-colors text-left"
+                className="card bg-base-100 border border-base-300 hover:border-primary/60 transition-colors text-left cursor-pointer"
                 onClick={async () => {
                   setSelected(null);
                   setLoadingSelected(true);
@@ -125,47 +139,6 @@ const Home: NextPage = () => {
             ))}
             {locations.length === 0 && <div className="opacity-70">No locations found. Try a different search.</div>}
           </div>
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
-          <p className="text-center text-lg">
-            Edit your smart contract{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              YourContract.sol
-            </code>{" "}
-            in{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/hardhat/contracts
-            </code>
-          </p>
-        </div>
-
-        <div className="grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col md:flex-row">
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <BugAntIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -173,7 +146,7 @@ const Home: NextPage = () => {
       <div>
         <input type="checkbox" id="location-preview-modal" className="modal-toggle" />
         <label htmlFor="location-preview-modal" className="modal cursor-pointer">
-          <label className="modal-box relative max-w-3xl">
+          <label className="modal-box relative max-w-3xl max-h-[90vh] overflow-y-auto">
             <input className="h-0 w-0 absolute top-0 left-0" />
             <label htmlFor="location-preview-modal" className="btn btn-ghost btn-sm btn-circle absolute right-3 top-3">
               ✕
@@ -194,11 +167,88 @@ const Home: NextPage = () => {
                   <div className="p-4 text-sm opacity-70">No map preview available for this location.</div>
                 )}
               </div>
+              {/* Additional location details */}
+              {selected && (
+                <div className="space-y-2">
+                  {Array.isArray(selected.akas) && selected.akas.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selected.akas.map((aka: string, idx: number) => (
+                        <span key={idx} className="badge badge-outline">
+                          {aka}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    {selected.radiusMiles != null && (
+                      <div>
+                        <span className="opacity-70">Radius:</span>{" "}
+                        {(() => {
+                          const v = Number(selected.radiusMiles);
+                          return Number.isFinite(v) ? `${v.toFixed(2)} mi` : String(selected.radiusMiles);
+                        })()}
+                      </div>
+                    )}
+                    {selected.lat != null && selected.lng != null && (
+                      <div>
+                        <span className="opacity-70">Coords:</span>{" "}
+                        {(() => {
+                          const la = Number(selected.lat);
+                          const ln = Number(selected.lng);
+                          return Number.isFinite(la) && Number.isFinite(ln)
+                            ? `${la.toFixed(5)}, ${ln.toFixed(5)}`
+                            : `${String(selected.lat)}, ${String(selected.lng)}`;
+                        })()}
+                      </div>
+                    )}
+                    {selected.temporary != null && String(selected.temporary) !== "" && (
+                      <div>
+                        <span className="opacity-70">Temporary:</span>{" "}
+                        {String(selected.temporary) === "1" || selected.temporary === true ? "Yes" : "No"}
+                      </div>
+                    )}
+                    {(selected.startsAt || selected.endsAt) && (
+                      <div className="sm:col-span-2">
+                        <span className="opacity-70">Schedule:</span>{" "}
+                        {(() => {
+                          const s = selected.startsAt ? new Date(Number(selected.startsAt)) : null;
+                          const e = selected.endsAt ? new Date(Number(selected.endsAt)) : null;
+                          const sf = s && !Number.isNaN(s.valueOf()) ? s.toLocaleString() : null;
+                          const ef = e && !Number.isNaN(e.valueOf()) ? e.toLocaleString() : null;
+                          if (sf && ef) return `${sf} → ${ef}`;
+                          if (sf) return `Starts ${sf}`;
+                          if (ef) return `Ends ${ef}`;
+                          return "";
+                        })()}
+                      </div>
+                    )}
+                    {selected.createdAt && (
+                      <div className="sm:col-span-2">
+                        <span className="opacity-70">Created:</span>{" "}
+                        {(() => {
+                          const d = new Date(Number(selected.createdAt));
+                          return !Number.isNaN(d.valueOf()) ? d.toLocaleString() : String(selected.createdAt);
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <button
                 className="btn btn-primary w-full"
                 onClick={() => {
                   try {
-                    if (selected?.id) localStorage.setItem("marketplace.defaultLocation", selected.id);
+                    if (selected?.id) {
+                      const data = {
+                        id: String(selected.id),
+                        name: selected?.name ?? null,
+                        lat: selected?.lat ?? null,
+                        lng: selected?.lng ?? null,
+                        radiusMiles: selected?.radiusMiles ?? null,
+                        savedAt: Date.now(),
+                      };
+                      localStorage.setItem("marketplace.defaultLocationData", JSON.stringify(data));
+                    }
                   } catch {}
                   const checkbox = document.getElementById("location-preview-modal") as HTMLInputElement | null;
                   if (checkbox) checkbox.checked = false;

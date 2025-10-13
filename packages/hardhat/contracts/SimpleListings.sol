@@ -2,11 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IListingType } from "./IListingType.sol";
-
-interface IERC20 {
-    function transfer(address to, uint256 value) external returns (bool);
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
-}
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SimpleListings is IListingType {
     // Custom errors
@@ -190,14 +186,6 @@ contract SimpleListings is IListingType {
         bytes calldata /*data*/
     ) external onlyMarketplace returns (bool) {
         emit SimpleListingClosed(listingId, caller);
-        return true;
-    }
-
-    // Backward compatibility
-    function closeListing(uint256 listingId, address caller) external onlyMarketplace returns (bool) {
-        if (!this.beforeClose(listingId, caller, "")) revert BeforeCloseFailed();
-        if (!this.onClose(listingId, caller, "")) revert OnCloseFailed();
-        if (!this.afterClose(listingId, caller, "")) revert AfterCloseFailed();
         return true;
     }
 }

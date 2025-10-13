@@ -12,7 +12,7 @@ interface IListingType {
     function onSale(uint256 listingId, address buyer, bytes calldata data) external payable returns (bool);
     function afterSale(uint256 listingId, address buyer, bytes calldata data) external returns (bool);
 
-    // Pre-buy lifecycle (e.g., escrow setup)
+    // Pre-buy lifecycle (e.g., escrow setup, pre-payment, auction mechanism etc.)
     function beforePreBuy(uint256 listingId, address buyer, bytes calldata data) external returns (bool);
     function onPreBuy(uint256 listingId, address buyer, bytes calldata data) external payable returns (bool);
     function afterPreBuy(uint256 listingId, address buyer, bytes calldata data) external returns (bool);

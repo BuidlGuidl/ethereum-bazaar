@@ -1,4 +1,4 @@
-const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY || "https://gateway.pinata.cloud/ipfs/";
+const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY || "https://ipfs.io/ipfs/";
 
 function toPath(cidOrUrl: string): string {
   if (!cidOrUrl) return "";
@@ -16,6 +16,25 @@ function toPath(cidOrUrl: string): string {
   }
   if (lower.startsWith("ipfs://")) return lower.substring("ipfs://".length);
   return lower;
+}
+
+/**
+ * Resolve an IPFS CID/URI or gateway URL to a browser-usable HTTP(S) URL.
+ * - If already http(s), returns as-is.
+ * - If ipfs:// or bare CID/path, returns a URL using the configured gateway.
+ */
+export function resolveIpfsUrl(cidOrUrl?: string | null): string | undefined {
+  if (!cidOrUrl) return undefined;
+  const input = cidOrUrl.trim();
+  if (!input) return undefined;
+  if (input.startsWith("http://") || input.startsWith("https://")) {
+    return input;
+  }
+  const path = toPath(input);
+  if (!path) return undefined;
+  // Ensure the gateway ends with /ipfs/ (or similar path segment)
+  const base = PINATA_GATEWAY.endsWith("/") ? PINATA_GATEWAY : `${PINATA_GATEWAY}/`;
+  return `${base}${path}`;
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit & { timeoutMs?: number }) {
