@@ -88,25 +88,36 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     easAddressOut = KNOWN_EAS[chainId];
   }
 
-  // Always write a generic helper json for frontend/backends regardless of network
-  const nextjsOutPath = path.resolve(hre.config.paths.root, "../nextjs/contracts/easConfig.json");
-  const nextjsOut = {
-    chainId: await hre.getChainId(),
-    schemaRegistry: schemaRegistryAddress,
-    eas: easAddressOut,
-    reviewSchemaUid: uid,
-  };
-  fs.writeFileSync(nextjsOutPath, JSON.stringify(nextjsOut, null, 2), { encoding: "utf-8" });
+  // Always write/update a per-chain helper json for frontend/backends
+  const writePerChainConfig = (outPath: string) => {
+    const chainKey = String(chainId);
+    const entry = {
+      schemaRegistry: schemaRegistryAddress,
+      eas: easAddressOut,
+      reviewSchemaUid: uid,
+    } as const;
 
-  const indexerOutPath = path.resolve(hre.config.paths.root, "../indexer/src/easConfig.json");
-  const indexerOut = {
-    chainId: await hre.getChainId(),
-    schemaRegistry: schemaRegistryAddress,
-    eas: easAddressOut,
-    reviewSchemaUid: uid,
+    let existing: any = {};
+    if (fs.existsSync(outPath)) {
+      try {
+        const raw = fs.readFileSync(outPath, { encoding: "utf-8" });
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          existing = parsed;
+        }
+      } catch {}
+    }
+
+    const updated = { ...existing, [chainKey]: entry };
+    fs.writeFileSync(outPath, JSON.stringify(updated, null, 2), { encoding: "utf-8" });
   };
-  fs.writeFileSync(indexerOutPath, JSON.stringify(indexerOut, null, 2), { encoding: "utf-8" });
-  console.log("📝 Wrote EAS generic config:", nextjsOutPath, indexerOutPath);
+
+  const nextjsOutPath = path.resolve(hre.config.paths.root, "../nextjs/contracts/easConfig.json");
+  const indexerOutPath = path.resolve(hre.config.paths.root, "../indexer/src/easConfig.json");
+
+  writePerChainConfig(nextjsOutPath);
+  writePerChainConfig(indexerOutPath);
+  console.log("📝 Wrote EAS per-chain config:", nextjsOutPath, indexerOutPath);
 };
 
 export default func;

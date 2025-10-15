@@ -2,42 +2,35 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IListingType } from "./IListingType.sol";
+import { Marketplace } from "./Marketplace.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SimpleListings is IListingType {
-    // Custom errors
     error PriceZero();
-    error IpfsHashEmpty();
     error NotActive();
     error IncorrectEth();
     error NoEthWithErc20();
     error Erc20TransferFailed();
     error NotCreator();
-    error AlreadyClosed();
     error NotMarketplace();
     error MarketplaceZeroAddress();
     error EthSendFailed();
-    error BeforeCloseFailed();
-    error OnCloseFailed();
-    error AfterCloseFailed();
+    error UnknownAction();
+    error NotSelf();
+
     struct SimpleListing {
-        address creator;
         address paymentToken; // address(0) for ETH, ERC20 otherwise
         uint256 price;
-        string ipfsHash;
-        bool active;
     }
 
     address public immutable marketplace;
-    uint256 public simpleListingCount;
     mapping(uint256 => SimpleListing) public listings;
 
     event SimpleListingCreated(
         uint256 indexed listingId,
         address indexed creator,
         address paymentToken,
-        uint256 price,
-        string ipfsHash
+        uint256 price
     );
     event SimpleListingSold(uint256 indexed listingId, address indexed buyer, uint256 price, address paymentToken);
     event SimpleListingClosed(uint256 indexed listingId, address indexed caller);
@@ -52,140 +45,88 @@ contract SimpleListings is IListingType {
         _;
     }
 
+    modifier onlySelf() {
+        if (msg.sender != address(this)) revert NotSelf();
+        _;
+    }
+
+    modifier isActive(bool active) {
+        if (!active) revert NotActive();
+        _;
+    }
+
     // View helpers
     function getListing(uint256 listingId) external view returns (bytes memory data) {
         SimpleListing memory l = listings[listingId];
-        return abi.encode(l.creator, l.paymentToken, l.price, l.ipfsHash, l.active);
+        return abi.encode(l.paymentToken, l.price);
     }
 
-    // Creation lifecycle
-    function beforeCreate(bytes calldata data) external view onlyMarketplace returns (bool) {
-        // data encoding: abi.encode(address paymentToken, uint256 price, string ipfsHash)
-        (, uint256 price, string memory ipfsHash) = abi.decode(data, (address, uint256, string));
+    // IListingType: create a new listing bound to the marketplace-provided id
+    function create(address creator, uint256 listingId, bytes calldata data) external onlyMarketplace returns (bool success) {
+        (address paymentToken, uint256 price) = abi.decode(data, (address, uint256));
         if (price == 0) revert PriceZero();
-        if (bytes(ipfsHash).length == 0) revert IpfsHashEmpty();
-        // paymentToken can be zero for ETH or any ERC20 address
-        return true;
-    }
-
-    function onCreate(address creator, bytes calldata data) external onlyMarketplace returns (uint256 listingId) {
-        (address paymentToken, uint256 price, string memory ipfsHash) = abi.decode(data, (address, uint256, string));
-        listingId = ++simpleListingCount;
         listings[listingId] = SimpleListing({
-            creator: creator,
             paymentToken: paymentToken,
-            price: price,
-            ipfsHash: ipfsHash,
-            active: true
+            price: price
         });
-        emit SimpleListingCreated(listingId, creator, paymentToken, price, ipfsHash);
-    }
-
-    function afterCreate(uint256 /*listingId*/, bytes calldata /*data*/) external view onlyMarketplace returns (bool) {
+        emit SimpleListingCreated(listingId, creator, paymentToken, price);
         return true;
     }
 
-    // Sale lifecycle
-    function beforeSale(
+    // Exposed entrypoints for dynamic dispatch; guarded so they can only be invoked via handleAction
+    function buy(
         uint256 listingId,
-        address /*buyer*/,
-        bytes calldata /*data*/
-    ) external view onlyMarketplace returns (bool) {
-        SimpleListing memory l = listings[listingId];
-        if (!l.active) revert NotActive();
-        return true;
-    }
-
-    function onSale(
-        uint256 listingId,
+        address creator,
+        bool active,
         address buyer,
         bytes calldata /*data*/
-    ) external payable onlyMarketplace returns (bool) {
+    ) external payable onlySelf isActive(active) {
         SimpleListing storage l = listings[listingId];
-        if (!l.active) revert NotActive();
-
         if (l.paymentToken == address(0)) {
             if (msg.value != l.price) revert IncorrectEth();
-            // forward ETH directly to creator
-            (bool sent, ) = l.creator.call{ value: msg.value }("");
+            (bool sent, ) = creator.call{ value: msg.value }("");
             if (!sent) revert EthSendFailed();
         } else {
             if (msg.value != 0) revert NoEthWithErc20();
-            // buyer must approve this contract to spend price amount
-            bool ok = IERC20(l.paymentToken).transferFrom(buyer, l.creator, l.price);
+            bool ok = IERC20(l.paymentToken).transferFrom(buyer, creator, l.price);
             if (!ok) revert Erc20TransferFailed();
         }
-
+        Marketplace(marketplace).setActive(listingId, false);
         emit SimpleListingSold(listingId, buyer, l.price, l.paymentToken);
-        return true;
     }
 
-    function afterSale(
+    function close(
         uint256 listingId,
-        address /*buyer*/,
-        bytes calldata /*data*/
-    ) external onlyMarketplace returns (bool) {
-        SimpleListing storage l = listings[listingId];
-        if (!l.active) revert NotActive();
-        l.active = false;
-        return true;
-    }
-
-    // Pre-buy lifecycle (no-op for simple listings)
-    function beforePreBuy(
-        uint256 /*listingId*/,
-        address /*buyer*/,
-        bytes calldata /*data*/
-    ) external view onlyMarketplace returns (bool) {
-        return true;
-    }
-
-    function onPreBuy(
-        uint256 /*listingId*/,
-        address /*buyer*/,
-        bytes calldata /*data*/
-    ) external payable onlyMarketplace returns (bool) {
-        return true;
-    }
-
-    function afterPreBuy(
-        uint256 /*listingId*/,
-        address /*buyer*/,
-        bytes calldata /*data*/
-    ) external view onlyMarketplace returns (bool) {
-        return true;
-    }
-
-    // Admin lifecycle
-    function beforeClose(
-        uint256 listingId,
+        address creator,
+        bool active,
         address caller,
         bytes calldata /*data*/
-    ) external view onlyMarketplace returns (bool) {
-        SimpleListing memory l = listings[listingId];
-        if (l.creator != caller) revert NotCreator();
-        if (!l.active) revert AlreadyClosed();
-        return true;
-    }
-
-    function onClose(
-        uint256 listingId,
-        address caller,
-        bytes calldata /*data*/
-    ) external onlyMarketplace returns (bool) {
-        SimpleListing storage l = listings[listingId];
-        if (l.creator != caller) revert NotCreator();
-        if (!l.active) revert AlreadyClosed();
-        l.active = false;
-        return true;
-    }
-
-    function afterClose(
-        uint256 listingId,
-        address caller,
-        bytes calldata /*data*/
-    ) external onlyMarketplace returns (bool) {
+    ) external onlySelf isActive(active) {
+        if (creator != caller) revert NotCreator();
+        Marketplace(marketplace).setActive(listingId, false);
         emit SimpleListingClosed(listingId, caller);
-        return true;
+    }
+
+    function handleAction(
+        uint256 listingId,
+        address creator,
+        bool active,
+        address caller,
+        bytes32 action,
+        bytes calldata data
+    ) external payable onlyMarketplace {
+        // dynamic dispatch to self with the provided selector; functions are protected by onlySelf
+        bytes4 selector = bytes4(action);
+        (bool ok, bytes memory reason) = address(this).call{ value: msg.value }(
+            abi.encodeWithSelector(selector, listingId, creator, active, caller, data)
+        );
+        if (!ok) {
+            if (reason.length > 0) {
+                assembly {
+                    revert(add(reason, 0x20), mload(reason))
+                }
+            }
+            revert UnknownAction();
+        }
     }
 }
