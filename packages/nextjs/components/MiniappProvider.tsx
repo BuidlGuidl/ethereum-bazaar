@@ -18,6 +18,8 @@ interface MiniappContextType {
   composeCast: (params: { text: string; embeds?: string[] }) => Promise<void>;
   openProfile: (params: { fid?: number; username?: string }) => Promise<void>;
   openMiniApp: (url: string) => Promise<void>;
+  clientAdded: boolean;
+  addMiniApp: () => Promise<void>;
 }
 
 const MiniappContext = createContext<MiniappContextType | undefined>(undefined);
@@ -38,6 +40,7 @@ export const MiniappProvider = ({ children }: MiniappProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isMiniApp, setIsMiniApp] = useState(false);
+  const [clientAdded, setClientAdded] = useState(false);
 
   const composeCast = async ({ text, embeds = [] }: { text: string; embeds?: string[] }) => {
     try {
@@ -138,18 +141,39 @@ export const MiniappProvider = ({ children }: MiniappProviderProps) => {
         // set the user to the context
         setUser(user as User);
         setIsMiniApp(isMiniApp);
+        setClientAdded(Boolean(context?.client?.added));
         setIsReady(true);
 
-        //check if user has addd the miniapp, if not force it
-        const ctx = await sdk.context;
-        const added = ctx?.client?.added ?? false;
-        console.log("added:", added);
-        if (!added) {
-          try {
-            await sdk.actions.addMiniApp();
-          } catch (e) {
-            console.log("Error adding mini app:", e);
+        // Auto-prompt to add Mini App on first open
+        try {
+          if (isMiniApp && !Boolean(context?.client?.added)) {
+            if (typeof window !== "undefined") {
+              const ADD_PROMPT_KEY = "miniapp:addPrompted";
+              const hasPrompted = window.localStorage.getItem(ADD_PROMPT_KEY);
+              if (!hasPrompted) {
+                window.localStorage.setItem(ADD_PROMPT_KEY, "1");
+                try {
+                  await sdk.actions.addMiniApp();
+                } catch (e) {
+                  console.log("Auto addMiniApp prompt failed or was rejected", e);
+                }
+                const updated = await sdk.context;
+                setClientAdded(Boolean(updated?.client?.added));
+              }
+            }
           }
+        } catch (e) {
+          console.log("Auto addMiniApp prompt error", e);
+        }
+
+        // Integrate back navigation with web navigation when supported
+        try {
+          const capabilities = await sdk.getCapabilities();
+          if (capabilities.includes("back")) {
+            await sdk.back.enableWebNavigation();
+          }
+        } catch (e) {
+          console.log("Back navigation integration error:", e);
         }
 
         // Expose miniapp data globally for templating systems
@@ -181,6 +205,17 @@ export const MiniappProvider = ({ children }: MiniappProviderProps) => {
       });
   }, []);
 
+  const addMiniApp = async () => {
+    try {
+      await sdk.actions.addMiniApp();
+      // Refresh context to reflect added state
+      const ctx = await sdk.context;
+      setClientAdded(Boolean(ctx?.client?.added));
+    } catch (e) {
+      console.error("addMiniApp error", e);
+    }
+  };
+
   const value = {
     user,
     isReady,
@@ -189,6 +224,8 @@ export const MiniappProvider = ({ children }: MiniappProviderProps) => {
     composeCast,
     openProfile,
     openMiniApp,
+    clientAdded,
+    addMiniApp,
   };
 
   return <MiniappContext.Provider value={value}>{children}</MiniappContext.Provider>;

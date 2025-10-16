@@ -7,7 +7,7 @@ import { easGetAttestationAbi } from "../abis/EASAbi";
 
 // Reuse one public client for reads
 const publicClient = createPublicClient({
-  transport: http(process.env.PONDER_RPC_URL_31337 ?? "http://127.0.0.1:8545"),
+  transport: http(process.env.PONDER_RPC_URL_8453 ?? "https://base.llamarpc.com"),
 });
 
 // --- IPFS helpers (resilient multi-gateway JSON fetch) ---
@@ -237,7 +237,7 @@ ponder.on("Marketplace:ListingActivationChanged" as any, async ({ event, context
 
 // --- EAS Reviews indexing ---
 // Read new per-chain keyed shape only
-const CHAIN_ID = Number(process.env.PONDER_CHAIN_ID || 31337);
+const CHAIN_ID = Number(process.env.PONDER_CHAIN_ID || 8453);
 const fileEntry = (easConfig as any)[String(CHAIN_ID)] as any;
 const REVIEW_SCHEMA_UID = fileEntry?.reviewSchemaUid as string | undefined;
 

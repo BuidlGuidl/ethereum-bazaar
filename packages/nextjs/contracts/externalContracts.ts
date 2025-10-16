@@ -38,6 +38,7 @@ const EAS_MINIMAL_ABI = [
   },
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const buildExternalContracts = (): GenericContractsDeclaration => {
   const result: Record<number, any> = {};
   for (const [chainIdStr, cfg] of Object.entries(EAS_CONFIGS)) {
@@ -53,6 +54,13 @@ const buildExternalContracts = (): GenericContractsDeclaration => {
   return result as GenericContractsDeclaration;
 };
 
-const externalContracts = buildExternalContracts();
+const externalContracts = {
+  8453: {
+    EAS: {
+      address: "0x4200000000000000000000000000000000000021",
+      abi: EAS_MINIMAL_ABI,
+    },
+  },
+};
 
-export default externalContracts as GenericContractsDeclaration;
+export default externalContracts;

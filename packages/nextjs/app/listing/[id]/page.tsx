@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useParams } from "next/navigation";
 import { Hex, decodeAbiParameters, formatUnits } from "viem";
 import { useAccount } from "wagmi";
+import { useMiniapp } from "~~/components/MiniappProvider";
 import FcAddressRating from "~~/components/marketplace/FcAddressRating";
 import { PayButton } from "~~/components/marketplace/PayButton";
 import { Address } from "~~/components/scaffold-eth/Address/Address";
@@ -19,6 +20,7 @@ const ListingDetailsPage = () => {
   const [data, setData] = useState<any | null>(null);
   const [indexed, setIndexed] = useState<any | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
+  const { composeCast, isMiniApp } = useMiniapp();
   const idNum = useMemo(() => (params?.id ? BigInt(params.id) : undefined), [params?.id]);
   useAccount();
 
@@ -296,6 +298,24 @@ const ListingDetailsPage = () => {
                 listingTypeAddress={payListingTypeAddress}
                 disabled={!active}
               />
+            ) : null}
+            {isMiniApp ? (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  try {
+                    const url = typeof window !== "undefined" ? window.location.href : "";
+                    const text = `Check out this listing: ${title}`;
+                    const embeds: string[] = [];
+                    if (url) embeds.push(url);
+                    await composeCast({ text, embeds });
+                  } catch (e) {
+                    console.error("share compose error", e);
+                  }
+                }}
+              >
+                Share
+              </button>
             ) : null}
           </div>
         </div>

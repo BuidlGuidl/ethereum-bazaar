@@ -84,7 +84,7 @@ const Home: NextPage = () => {
 
   return (
     <>
-      <div className="flex items-center flex-col grow pt-10">
+      <div className="flex items-center flex-col grow pt-2">
         <div className="px-5 w-full max-w-5xl">
           <div className="flex items-center justify-between">
             <div className="flex-1">

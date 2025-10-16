@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
-const baseUrl = process.env.NEXT_PUBLIC_URL ?? `http://localhost:${process.env.NEXT_PUBLIC_PORT || 3000}`;
+const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : `http://localhost:${process.env.PORT || 3000}`;
 const titleTemplate = "%s | Ethereum Bazaar";
 
 export const getMetadata = ({
@@ -25,7 +27,7 @@ export const getMetadata = ({
       },
     },
   });
-
+  console.log(baseUrl);
   return {
     metadataBase: new URL(baseUrl),
     title: {

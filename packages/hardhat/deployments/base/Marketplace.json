@@ -1,0 +1,397 @@
+{
+  "address": "0x0b48f81a5d1c42a66D81c35cAf568C981F93BE05",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ListingCreationFailed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ListingNotFound",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyListingTypeCanModify",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReentrancyGuardReentrantCall",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "caller",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "action",
+          "type": "bytes32"
+        }
+      ],
+      "name": "ListingAction",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "listingId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "name": "ListingActivationChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "creator",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "listingType",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "listingId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "contenthash",
+          "type": "string"
+        }
+      ],
+      "name": "ListingCreated",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "action",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "callAction",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "listingType",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "contenthash",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "createListing",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        }
+      ],
+      "name": "getListing",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "creator",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "listingType",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "contenthash",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        },
+        {
+          "internalType": "bytes",
+          "name": "listingData",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "listingCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "listings",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "creator",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "listingType",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "contenthash",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "listingId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "name": "setActive",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x6bfde8da813e1e85773f5d60e45bf1019cd9e81401a1ca41ce4480a420ef9667",
+  "receipt": {
+    "to": null,
+    "from": "0xc0ecFcAad1e434cB959B48D97347B1e288d0372a",
+    "contractAddress": "0x0b48f81a5d1c42a66D81c35cAf568C981F93BE05",
+    "transactionIndex": 241,
+    "gasUsed": "832282",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x706223e746503e67be347519ad00238581daea605acc3cbd995cb96ac865c740",
+    "transactionHash": "0x6bfde8da813e1e85773f5d60e45bf1019cd9e81401a1ca41ce4480a420ef9667",
+    "logs": [],
+    "blockNumber": 36913490,
+    "cumulativeGasUsed": "53416281",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "85c01441fdcb968b7aa5c8501f044147",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ListingCreationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ListingNotFound\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"OnlyListingTypeCanModify\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ReentrancyGuardReentrantCall\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"caller\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"action\",\"type\":\"bytes32\"}],\"name\":\"ListingAction\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"listingId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"}],\"name\":\"ListingActivationChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"listingType\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"listingId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"contenthash\",\"type\":\"string\"}],\"name\":\"ListingCreated\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"action\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"callAction\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"listingType\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"contenthash\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"createListing\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"name\":\"getListing\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"listingType\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"contenthash\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"},{\"internalType\":\"bytes\",\"name\":\"listingData\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"listingCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"listings\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"listingType\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"contenthash\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"listingId\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"}],\"name\":\"setActive\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"errors\":{\"ReentrancyGuardReentrantCall()\":[{\"details\":\"Unauthorized reentrant call.\"}]},\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/Marketplace.sol\":\"Marketplace\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts/utils/ReentrancyGuard.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (utils/ReentrancyGuard.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev Contract module that helps prevent reentrant calls to a function.\\n *\\n * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier\\n * available, which can be applied to functions to make sure there are no nested\\n * (reentrant) calls to them.\\n *\\n * Note that because there is a single `nonReentrant` guard, functions marked as\\n * `nonReentrant` may not call one another. This can be worked around by making\\n * those functions `private`, and then adding `external` `nonReentrant` entry\\n * points to them.\\n *\\n * TIP: If you would like to learn more about reentrancy and alternative ways\\n * to protect against it, check out our blog post\\n * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].\\n */\\nabstract contract ReentrancyGuard {\\n    // Booleans are more expensive than uint256 or any type that takes up a full\\n    // word because each write operation emits an extra SLOAD to first read the\\n    // slot's contents, replace the bits taken up by the boolean, and then write\\n    // back. This is the compiler's defense against contract upgrades and\\n    // pointer aliasing, and it cannot be disabled.\\n\\n    // The values being non-zero value makes deployment a bit more expensive,\\n    // but in exchange the refund on every call to nonReentrant will be lower in\\n    // amount. Since refunds are capped to a percentage of the total\\n    // transaction's gas, it is best to keep them low in cases like this one, to\\n    // increase the likelihood of the full refund coming into effect.\\n    uint256 private constant NOT_ENTERED = 1;\\n    uint256 private constant ENTERED = 2;\\n\\n    uint256 private _status;\\n\\n    /**\\n     * @dev Unauthorized reentrant call.\\n     */\\n    error ReentrancyGuardReentrantCall();\\n\\n    constructor() {\\n        _status = NOT_ENTERED;\\n    }\\n\\n    /**\\n     * @dev Prevents a contract from calling itself, directly or indirectly.\\n     * Calling a `nonReentrant` function from another `nonReentrant`\\n     * function is not supported. It is possible to prevent this from happening\\n     * by making the `nonReentrant` function external, and making it call a\\n     * `private` function that does the actual work.\\n     */\\n    modifier nonReentrant() {\\n        _nonReentrantBefore();\\n        _;\\n        _nonReentrantAfter();\\n    }\\n\\n    function _nonReentrantBefore() private {\\n        // On the first call to nonReentrant, _status will be NOT_ENTERED\\n        if (_status == ENTERED) {\\n            revert ReentrancyGuardReentrantCall();\\n        }\\n\\n        // Any calls to nonReentrant after this point will fail\\n        _status = ENTERED;\\n    }\\n\\n    function _nonReentrantAfter() private {\\n        // By storing the original value once again, a refund is triggered (see\\n        // https://eips.ethereum.org/EIPS/eip-2200)\\n        _status = NOT_ENTERED;\\n    }\\n\\n    /**\\n     * @dev Returns true if the reentrancy guard is currently set to \\\"entered\\\", which indicates there is a\\n     * `nonReentrant` function in the call stack.\\n     */\\n    function _reentrancyGuardEntered() internal view returns (bool) {\\n        return _status == ENTERED;\\n    }\\n}\\n\",\"keccak256\":\"0xf980daa263b661ab8ddee7d4fd833c7da7e7995e2c359ff1f17e67e4112f2236\",\"license\":\"MIT\"},\"contracts/IListingType.sol\":{\"content\":\"//SPDX-License-Identifier: MIT\\npragma solidity >=0.8.0 <0.9.0;\\n\\ninterface IListingType {\\n    struct ListingTypeMetadata {\\n        string name;          // e.g. \\\"SimpleListing\\\"\\n        string version;       // e.g. \\\"1.0.0\\\"\\n        string description;   // optional\\n        string abi;           // JSON ABI encoded as a string\\n    }\\n\\n    /// @notice Creates a new listing\\n    /// @param creator The creator of the listing\\n    /// @param listingId The ID of the listing\\n    /// @param data The data for the listing\\n    /// @dev All listings start at this step\\n    function create(address creator, uint256 listingId, bytes calldata data)\\n        external\\n        returns (bool success);\\n\\n    /// @notice Handles an action for a listing\\n    /// @param listingId The ID of the listing\\n    /// @param creator The creator of the listing\\n    /// @param active Whether the listing is active\\n    /// @param caller The caller of the action\\n    /// @param action The action to handle\\n    /// @param data The data for the action\\n    /// @dev The caller must be the marketplace contract\\n    function handleAction(\\n        uint256 listingId,\\n        address creator,\\n        bool active,\\n        address caller,\\n        bytes32 action,\\n        bytes calldata data\\n    ) external payable;\\n\\n    /// @notice Returns the data for a listing\\n    /// @dev The data is the encoded data for the listing\\n    function getListing(uint256 listingId)\\n        external\\n        view\\n        returns (bytes memory data);\\n}\\n\",\"keccak256\":\"0x3a0b496630c1d806853dd70ed59cf031926794bafe6a566bffe15a87ddb43d6e\",\"license\":\"MIT\"},\"contracts/Marketplace.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity >=0.8.0 <0.9.0;\\n\\nimport { IListingType } from \\\"./IListingType.sol\\\";\\nimport { ReentrancyGuard } from \\\"@openzeppelin/contracts/utils/ReentrancyGuard.sol\\\";\\n\\ncontract Marketplace is ReentrancyGuard {\\n    error ListingCreationFailed();\\n    error OnlyListingTypeCanModify();\\n    error ListingNotFound();\\n\\n    struct ListingPointer {\\n        address creator;\\n        address listingType;\\n        string contenthash;\\n        bool active;\\n    }\\n\\n    uint256 public listingCount;\\n    mapping(uint256 => ListingPointer) public listings;\\n\\n    event ListingCreated(uint256 indexed id, address indexed creator, address indexed listingType, uint256 listingId, string contenthash);\\n    event ListingAction(uint256 indexed id, address indexed caller, bytes32 action);\\n    event ListingActivationChanged(uint256 indexed listingId, bool active);\\n\\n    function createListing(\\n        address listingType,\\n        string calldata contenthash,\\n        bytes calldata data\\n    ) external nonReentrant returns (uint256 id) {\\n        id = listingCount++;\\n        bool success = IListingType(listingType).create(msg.sender, id, data);\\n        if (!success) revert ListingCreationFailed();\\n        listings[id] = ListingPointer(msg.sender, listingType, contenthash, true);\\n        emit ListingCreated(id, msg.sender, listingType, id, contenthash);\\n    }\\n\\n    function callAction(\\n        uint256 id,\\n        bytes32 action,\\n        bytes calldata data\\n    ) external payable nonReentrant {\\n        if (id >= listingCount) revert ListingNotFound();\\n        ListingPointer memory ptr = listings[id];\\n        IListingType(ptr.listingType).handleAction{value: msg.value}(id, ptr.creator, ptr.active, msg.sender, action, data);\\n        emit ListingAction(id, msg.sender, action);\\n    }\\n\\n    function setActive(uint256 listingId, bool active) external nonReentrant {\\n        ListingPointer storage record = listings[listingId];\\n        if (msg.sender != record.listingType) revert OnlyListingTypeCanModify();\\n        record.active = active;\\n        emit ListingActivationChanged(listingId, active);\\n    }\\n\\n    function getListing(uint256 id) external view returns (\\n        address creator,\\n        address listingType,\\n        string memory contenthash,\\n        bool active,\\n        bytes memory listingData\\n    ) {\\n        ListingPointer memory ptr = listings[id];\\n        creator = ptr.creator;\\n        listingType = ptr.listingType;\\n        contenthash = ptr.contenthash;\\n        active = ptr.active;\\n        listingData = IListingType(ptr.listingType).getListing(id);\\n    }\\n}\\n\",\"keccak256\":\"0x7f0c82b2772bb1855d9fc2190384667e5e1c820b1f882144314962cfcaa12cf2\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b506001600055610db1806100256000396000f3fe6080604052600436106100555760003560e01c8063107a274a1461005a578063a9b07c2614610094578063ad627cc3146100b8578063de74e57b146100cd578063e0481e13146100fd578063e60a955d1461011d575b600080fd5b34801561006657600080fd5b5061007a6100753660046107fa565b61013d565b60405161008b959493929190610863565b60405180910390f35b3480156100a057600080fd5b506100aa60015481565b60405190815260200161008b565b6100cb6100c63660046108fe565b6102bc565b005b3480156100d957600080fd5b506100ed6100e83660046107fa565b610482565b60405161008b9493929190610951565b34801561010957600080fd5b506100aa610118366004610990565b610545565b34801561012957600080fd5b506100cb610138366004610a30565b610736565b6000818152600260208181526040808420815160808101835281546001600160a01b03908116825260018301541693810193909352928301805485946060948694869486949293929184019161019290610a60565b80601f01602080910402602001604051908101604052809291908181526020018280546101be90610a60565b801561020b5780601f106101e05761010080835404028352916020019161020b565b820191906000526020600020905b8154815290600101906020018083116101ee57829003601f168201915b50505091835250506003919091015460ff1615156020918201528151908201516040808401516060850151915163083d13a560e11b8152600481018d9052939a5091985090965094509091506001600160a01b0386169063107a274a90602401600060405180830381865afa158015610288573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f191682016040526102b09190810190610ab0565b91505091939590929450565b6102c46107d0565b60015484106102e657604051630fc87cc760e31b815260040160405180910390fd5b6000848152600260208181526040808420815160808101835281546001600160a01b0390811682526001830154169381019390935292830180549293929184019161033090610a60565b80601f016020809104026020016040519081016040528092919081815260200182805461035c90610a60565b80156103a95780601f1061037e576101008083540402835291602001916103a9565b820191906000526020600020905b81548152906001019060200180831161038c57829003601f168201915b50505091835250506003919091015460ff16151560209182015281015181516060830151604051634e4cfe2760e01b81529394506001600160a01b0390921692634e4cfe27923492610408928b929033908c908c908c90600401610b86565b6000604051808303818588803b15801561042157600080fd5b505af1158015610435573d6000803e3d6000fd5b50506040518781523393508892507f13fb71ea61092190fb57157739ca4022b56d4058356cc5c5b1b171772f84bb0b915060200160405180910390a35061047c6001600055565b50505050565b60026020819052600091825260409091208054600182015492820180546001600160a01b039283169490921692916104b990610a60565b80601f01602080910402602001604051908101604052809291908181526020018280546104e590610a60565b80156105325780601f1061050757610100808354040283529160200191610532565b820191906000526020600020905b81548152906001019060200180831161051557829003601f168201915b5050506003909301549192505060ff1684565b600061054f6107d0565b6001805490600061055f83610bd5565b9190505590506000866001600160a01b031663696c9c0a338487876040518563ffffffff1660e01b81526004016105999493929190610bfc565b6020604051808303816000875af11580156105b8573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906105dc9190610c2e565b9050806105fc57604051630219dcc960e11b815260040160405180910390fd5b6040518060800160405280336001600160a01b03168152602001886001600160a01b0316815260200187878080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201829052509385525050600160209384018190528683526002808552604093849020865181546001600160a01b03199081166001600160a01b039283161783559688015193820180549097169316929092179094559184015191928301916106bb915082610ca1565b50606091909101516003909101805460ff19169115159190911790556040516001600160a01b03881690339084907f2e084070a64eaad34536e8ff3d097cc9f122b44df30952e359a262ea6166a1a69061071a9083908c908c90610d61565b60405180910390a45061072d6001600055565b95945050505050565b61073e6107d0565b600082815260026020526040902060018101546001600160a01b0316331461077957604051634700922b60e01b815260040160405180910390fd5b60038101805460ff191683151590811790915560405190815283907fba896e3c7f11a00419a14ffad23b02775c679b3463fae1d428302c5b07fabeb69060200160405180910390a2506107cc6001600055565b5050565b6002600054036107f357604051633ee5aeb560e01b815260040160405180910390fd5b6002600055565b60006020828403121561080c57600080fd5b5035919050565b60005b8381101561082e578181015183820152602001610816565b50506000910152565b6000815180845261084f816020860160208601610813565b601f01601f19169290920160200192915050565b6001600160a01b0386811682528516602082015260a06040820181905260009061088f90830186610837565b841515606084015282810360808401526108a98185610837565b98975050505050505050565b60008083601f8401126108c757600080fd5b50813567ffffffffffffffff8111156108df57600080fd5b6020830191508360208285010111156108f757600080fd5b9250929050565b6000806000806060858703121561091457600080fd5b8435935060208501359250604085013567ffffffffffffffff81111561093957600080fd5b610945878288016108b5565b95989497509550505050565b6001600160a01b0385811682528416602082015260806040820181905260009061097d90830185610837565b9050821515606083015295945050505050565b6000806000806000606086880312156109a857600080fd5b85356001600160a01b03811681146109bf57600080fd5b9450602086013567ffffffffffffffff808211156109dc57600080fd5b6109e889838a016108b5565b90965094506040880135915080821115610a0157600080fd5b50610a0e888289016108b5565b969995985093965092949392505050565b8015158114610a2d57600080fd5b50565b60008060408385031215610a4357600080fd5b823591506020830135610a5581610a1f565b809150509250929050565b600181811c90821680610a7457607f821691505b602082108103610a9457634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b600060208284031215610ac257600080fd5b815167ffffffffffffffff80821115610ada57600080fd5b818401915084601f830112610aee57600080fd5b815181811115610b0057610b00610a9a565b604051601f8201601f19908116603f01168101908382118183101715610b2857610b28610a9a565b81604052828152876020848701011115610b4157600080fd5b610b52836020830160208801610813565b979650505050505050565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b8781526001600160a01b0387811660208301528615156040830152851660608201526080810184905260c060a08201819052600090610bc89083018486610b5d565b9998505050505050505050565b600060018201610bf557634e487b7160e01b600052601160045260246000fd5b5060010190565b60018060a01b0385168152836020820152606060408201526000610c24606083018486610b5d565b9695505050505050565b600060208284031215610c4057600080fd5b8151610c4b81610a1f565b9392505050565b601f821115610c9c57600081815260208120601f850160051c81016020861015610c795750805b601f850160051c820191505b81811015610c9857828155600101610c85565b5050505b505050565b815167ffffffffffffffff811115610cbb57610cbb610a9a565b610ccf81610cc98454610a60565b84610c52565b602080601f831160018114610d045760008415610cec5750858301515b600019600386901b1c1916600185901b178555610c98565b600085815260208120601f198616915b82811015610d3357888601518255948401946001909101908401610d14565b5085821015610d515787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b83815260406020820152600061072d604083018486610b5d56fea2646970667358221220ded2c5f6aedd081d8843a0591a64cacf81f1057576669e528ca85fcf8f1d1bf764736f6c63430008140033",
+  "deployedBytecode": "0x6080604052600436106100555760003560e01c8063107a274a1461005a578063a9b07c2614610094578063ad627cc3146100b8578063de74e57b146100cd578063e0481e13146100fd578063e60a955d1461011d575b600080fd5b34801561006657600080fd5b5061007a6100753660046107fa565b61013d565b60405161008b959493929190610863565b60405180910390f35b3480156100a057600080fd5b506100aa60015481565b60405190815260200161008b565b6100cb6100c63660046108fe565b6102bc565b005b3480156100d957600080fd5b506100ed6100e83660046107fa565b610482565b60405161008b9493929190610951565b34801561010957600080fd5b506100aa610118366004610990565b610545565b34801561012957600080fd5b506100cb610138366004610a30565b610736565b6000818152600260208181526040808420815160808101835281546001600160a01b03908116825260018301541693810193909352928301805485946060948694869486949293929184019161019290610a60565b80601f01602080910402602001604051908101604052809291908181526020018280546101be90610a60565b801561020b5780601f106101e05761010080835404028352916020019161020b565b820191906000526020600020905b8154815290600101906020018083116101ee57829003601f168201915b50505091835250506003919091015460ff1615156020918201528151908201516040808401516060850151915163083d13a560e11b8152600481018d9052939a5091985090965094509091506001600160a01b0386169063107a274a90602401600060405180830381865afa158015610288573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f191682016040526102b09190810190610ab0565b91505091939590929450565b6102c46107d0565b60015484106102e657604051630fc87cc760e31b815260040160405180910390fd5b6000848152600260208181526040808420815160808101835281546001600160a01b0390811682526001830154169381019390935292830180549293929184019161033090610a60565b80601f016020809104026020016040519081016040528092919081815260200182805461035c90610a60565b80156103a95780601f1061037e576101008083540402835291602001916103a9565b820191906000526020600020905b81548152906001019060200180831161038c57829003601f168201915b50505091835250506003919091015460ff16151560209182015281015181516060830151604051634e4cfe2760e01b81529394506001600160a01b0390921692634e4cfe27923492610408928b929033908c908c908c90600401610b86565b6000604051808303818588803b15801561042157600080fd5b505af1158015610435573d6000803e3d6000fd5b50506040518781523393508892507f13fb71ea61092190fb57157739ca4022b56d4058356cc5c5b1b171772f84bb0b915060200160405180910390a35061047c6001600055565b50505050565b60026020819052600091825260409091208054600182015492820180546001600160a01b039283169490921692916104b990610a60565b80601f01602080910402602001604051908101604052809291908181526020018280546104e590610a60565b80156105325780601f1061050757610100808354040283529160200191610532565b820191906000526020600020905b81548152906001019060200180831161051557829003601f168201915b5050506003909301549192505060ff1684565b600061054f6107d0565b6001805490600061055f83610bd5565b9190505590506000866001600160a01b031663696c9c0a338487876040518563ffffffff1660e01b81526004016105999493929190610bfc565b6020604051808303816000875af11580156105b8573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906105dc9190610c2e565b9050806105fc57604051630219dcc960e11b815260040160405180910390fd5b6040518060800160405280336001600160a01b03168152602001886001600160a01b0316815260200187878080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201829052509385525050600160209384018190528683526002808552604093849020865181546001600160a01b03199081166001600160a01b039283161783559688015193820180549097169316929092179094559184015191928301916106bb915082610ca1565b50606091909101516003909101805460ff19169115159190911790556040516001600160a01b03881690339084907f2e084070a64eaad34536e8ff3d097cc9f122b44df30952e359a262ea6166a1a69061071a9083908c908c90610d61565b60405180910390a45061072d6001600055565b95945050505050565b61073e6107d0565b600082815260026020526040902060018101546001600160a01b0316331461077957604051634700922b60e01b815260040160405180910390fd5b60038101805460ff191683151590811790915560405190815283907fba896e3c7f11a00419a14ffad23b02775c679b3463fae1d428302c5b07fabeb69060200160405180910390a2506107cc6001600055565b5050565b6002600054036107f357604051633ee5aeb560e01b815260040160405180910390fd5b6002600055565b60006020828403121561080c57600080fd5b5035919050565b60005b8381101561082e578181015183820152602001610816565b50506000910152565b6000815180845261084f816020860160208601610813565b601f01601f19169290920160200192915050565b6001600160a01b0386811682528516602082015260a06040820181905260009061088f90830186610837565b841515606084015282810360808401526108a98185610837565b98975050505050505050565b60008083601f8401126108c757600080fd5b50813567ffffffffffffffff8111156108df57600080fd5b6020830191508360208285010111156108f757600080fd5b9250929050565b6000806000806060858703121561091457600080fd5b8435935060208501359250604085013567ffffffffffffffff81111561093957600080fd5b610945878288016108b5565b95989497509550505050565b6001600160a01b0385811682528416602082015260806040820181905260009061097d90830185610837565b9050821515606083015295945050505050565b6000806000806000606086880312156109a857600080fd5b85356001600160a01b03811681146109bf57600080fd5b9450602086013567ffffffffffffffff808211156109dc57600080fd5b6109e889838a016108b5565b90965094506040880135915080821115610a0157600080fd5b50610a0e888289016108b5565b969995985093965092949392505050565b8015158114610a2d57600080fd5b50565b60008060408385031215610a4357600080fd5b823591506020830135610a5581610a1f565b809150509250929050565b600181811c90821680610a7457607f821691505b602082108103610a9457634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b600060208284031215610ac257600080fd5b815167ffffffffffffffff80821115610ada57600080fd5b818401915084601f830112610aee57600080fd5b815181811115610b0057610b00610a9a565b604051601f8201601f19908116603f01168101908382118183101715610b2857610b28610a9a565b81604052828152876020848701011115610b4157600080fd5b610b52836020830160208801610813565b979650505050505050565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b8781526001600160a01b0387811660208301528615156040830152851660608201526080810184905260c060a08201819052600090610bc89083018486610b5d565b9998505050505050505050565b600060018201610bf557634e487b7160e01b600052601160045260246000fd5b5060010190565b60018060a01b0385168152836020820152606060408201526000610c24606083018486610b5d565b9695505050505050565b600060208284031215610c4057600080fd5b8151610c4b81610a1f565b9392505050565b601f821115610c9c57600081815260208120601f850160051c81016020861015610c795750805b601f850160051c820191505b81811015610c9857828155600101610c85565b5050505b505050565b815167ffffffffffffffff811115610cbb57610cbb610a9a565b610ccf81610cc98454610a60565b84610c52565b602080601f831160018114610d045760008415610cec5750858301515b600019600386901b1c1916600185901b178555610c98565b600085815260208120601f198616915b82811015610d3357888601518255948401946001909101908401610d14565b5085821015610d515787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b83815260406020820152600061072d604083018486610b5d56fea2646970667358221220ded2c5f6aedd081d8843a0591a64cacf81f1057576669e528ca85fcf8f1d1bf764736f6c63430008140033",
+  "devdoc": {
+    "errors": {
+      "ReentrancyGuardReentrantCall()": [
+        {
+          "details": "Unauthorized reentrant call."
+        }
+      ]
+    },
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 88,
+        "contract": "contracts/Marketplace.sol:Marketplace",
+        "label": "_status",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_uint256"
+      },
+      {
+        "astId": 219,
+        "contract": "contracts/Marketplace.sol:Marketplace",
+        "label": "listingCount",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_uint256"
+      },
+      {
+        "astId": 224,
+        "contract": "contracts/Marketplace.sol:Marketplace",
+        "label": "listings",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_mapping(t_uint256,t_struct(ListingPointer)217_storage)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_uint256,t_struct(ListingPointer)217_storage)": {
+        "encoding": "mapping",
+        "key": "t_uint256",
+        "label": "mapping(uint256 => struct Marketplace.ListingPointer)",
+        "numberOfBytes": "32",
+        "value": "t_struct(ListingPointer)217_storage"
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "label": "string",
+        "numberOfBytes": "32"
+      },
+      "t_struct(ListingPointer)217_storage": {
+        "encoding": "inplace",
+        "label": "struct Marketplace.ListingPointer",
+        "members": [
+          {
+            "astId": 210,
+            "contract": "contracts/Marketplace.sol:Marketplace",
+            "label": "creator",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address"
+          },
+          {
+            "astId": 212,
+            "contract": "contracts/Marketplace.sol:Marketplace",
+            "label": "listingType",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address"
+          },
+          {
+            "astId": 214,
+            "contract": "contracts/Marketplace.sol:Marketplace",
+            "label": "contenthash",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_string_storage"
+          },
+          {
+            "astId": 216,
+            "contract": "contracts/Marketplace.sol:Marketplace",
+            "label": "active",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_bool"
+          }
+        ],
+        "numberOfBytes": "128"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}

@@ -22,7 +22,7 @@ type HeaderMenuLink = {
 
 export const menuLinks: HeaderMenuLink[] = [
   {
-    label: "Home",
+    label: "All Locations",
     href: "/?home=1",
   },
   {
@@ -33,12 +33,15 @@ export const menuLinks: HeaderMenuLink[] = [
 ];
 
 export const HeaderMenuLinks = () => {
+  const { targetNetwork } = useTargetNetwork();
+  const isLocalNetwork = targetNetwork.id === hardhat.id;
   const pathname = usePathname();
   const { address } = useAccount();
 
   return (
     <>
       {menuLinks.map(({ label, href, icon }) => {
+        if (label === "Debug Contracts" && !isLocalNetwork) return null;
         const isActive = pathname === href;
         return (
           <li key={href}>
@@ -83,7 +86,7 @@ export const Header = () => {
   });
 
   return (
-    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 shrink-0 justify-between z-20 shadow-md shadow-secondary px-0 sm:px-2">
+    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 shrink-0 justify-between z-20 px-0 sm:px-2">
       <div className="navbar-start w-auto lg:w-1/2 flex items-center gap-1">
         <BackButton />
         <Link href="/?home=1" passHref className="hidden lg:flex items-center gap-1 ml-4 mr-3 shrink-0">
@@ -112,6 +115,7 @@ export const Header = () => {
       <div className="navbar-end grow mr-4">
         <RainbowKitCustomConnectButton />
         {isLocalNetwork && <FaucetButton />}
+        {/* Removed Add Mini App button; auto-prompt handled in provider */}
         <details className="dropdown dropdown-end" ref={burgerMenuRef}>
           <summary className="btn btn-ghost lg:hidden hover:bg-transparent">
             <Bars3Icon className="h-1/2" />
