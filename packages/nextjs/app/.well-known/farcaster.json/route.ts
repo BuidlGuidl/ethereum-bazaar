@@ -18,7 +18,7 @@ export async function GET() {
       payload: process.env.FARCASTER_PAYLOAD,
       signature: process.env.FARCASTER_SIGNATURE,
     },
-    frame: withValidProperties({
+    miniapp: withValidProperties({
       version: "1",
       name: "Ethereum Bazaar",
       subtitle: "A peer to peer marketplace",

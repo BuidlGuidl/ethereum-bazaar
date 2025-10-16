@@ -2,8 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IListingType } from "./IListingType.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract Marketplace {
+contract Marketplace is ReentrancyGuard {
     error ListingCreationFailed();
     error OnlyListingTypeCanModify();
     error ListingNotFound();
@@ -26,8 +27,8 @@ contract Marketplace {
         address listingType,
         string calldata contenthash,
         bytes calldata data
-    ) external returns (uint256 id) {
-        id = ++listingCount;
+    ) external nonReentrant returns (uint256 id) {
+        id = listingCount++;
         bool success = IListingType(listingType).create(msg.sender, id, data);
         if (!success) revert ListingCreationFailed();
         listings[id] = ListingPointer(msg.sender, listingType, contenthash, true);
@@ -38,14 +39,14 @@ contract Marketplace {
         uint256 id,
         bytes32 action,
         bytes calldata data
-    ) external payable {
-        if (id > listingCount) revert ListingNotFound();
+    ) external payable nonReentrant {
+        if (id >= listingCount) revert ListingNotFound();
         ListingPointer memory ptr = listings[id];
         IListingType(ptr.listingType).handleAction{value: msg.value}(id, ptr.creator, ptr.active, msg.sender, action, data);
         emit ListingAction(id, msg.sender, action);
     }
 
-    function setActive(uint256 listingId, bool active) external {
+    function setActive(uint256 listingId, bool active) external nonReentrant {
         ListingPointer storage record = listings[listingId];
         if (msg.sender != record.listingType) revert OnlyListingTypeCanModify();
         record.active = active;

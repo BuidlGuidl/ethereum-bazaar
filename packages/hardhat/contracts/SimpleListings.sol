@@ -82,6 +82,7 @@ contract SimpleListings is IListingType {
         bytes calldata /*data*/
     ) external payable onlySelf isActive(active) {
         SimpleListing storage l = listings[listingId];
+        Marketplace(marketplace).setActive(listingId, false);
         if (l.paymentToken == address(0)) {
             if (msg.value != l.price) revert IncorrectEth();
             (bool sent, ) = creator.call{ value: msg.value }("");
@@ -91,7 +92,6 @@ contract SimpleListings is IListingType {
             bool ok = IERC20(l.paymentToken).transferFrom(buyer, creator, l.price);
             if (!ok) revert Erc20TransferFailed();
         }
-        Marketplace(marketplace).setActive(listingId, false);
         emit SimpleListingSold(listingId, buyer, l.price, l.paymentToken);
     }
 

@@ -21,7 +21,7 @@ Farcaster-ready marketplace mini app built on Scaffold-ETH 2. It lets creators p
 - **TestERC20.sol**: Simple mintable tokens for local development (2 and 6 decimals). Only deployed on `localhost`/`hardhat`.
 
 ### Marketplace data model
-- `listingCount`: sequential marketplace-level IDs starting at 1 (also used as the listing-type ID).
+- `listingCount`: sequential marketplace-level IDs starting at 0 (also used as the listing-type ID).
 - `listings[id]`: `ListingPointer { creator, listingType, contenthash, active }` where:
   - `listingType` is the address of the listing-type contract (e.g., `SimpleListings`).
   - `contenthash` is an arbitrary string (e.g., IPFS CID) set at creation time.
@@ -34,7 +34,7 @@ Farcaster-ready marketplace mini app built on Scaffold-ETH 2. It lets creators p
 
 2) **Actions**: `Marketplace.callAction(id, action, data)`
    - Delegates to `IListingType.handleAction(listingId=id, creator, active, caller=msg.sender, action, data)`.
-   - `action` is the 4-byte function selector (left-padded to 32 bytes) of a function exposed by the listing-type for dynamic dispatch.
+   - `action` is a 32-byte word whose MOST SIGNIFICANT 4 bytes are the function selector. In other words, pass the 4-byte selector RIGHT-PADDED to 32 bytes.
    - Emits `ListingAction(id, caller, action)`.
 
 3) **Activation toggle**
@@ -59,11 +59,14 @@ Farcaster-ready marketplace mini app built on Scaffold-ETH 2. It lets creators p
 - SimpleListings: `SimpleListingCreated`, `SimpleListingSold`, `SimpleListingClosed`.
 
 ### Calling actions from the frontend
-- With SE-2 hooks, write to `Marketplace.callAction` and pass a selector for the action you want. For example, to buy a listing with ETH using `SimpleListings`:
+- With SE-2 hooks, write to `Marketplace.callAction` and pass the selector in the MOST SIGNIFICANT 4 bytes of a 32-byte word (right-padded). For example, to buy a listing with ETH using `SimpleListings`:
 
 ```ts
 // selector for: buy(uint256,address,bool,address,bytes)
-const action = '0x9570e8f9' as const; // bytes4; pass left-padded to 32 bytes
+const selector = '0x9570e8f9' as const; // bytes4
+// Right-pad to 32 bytes so the selector sits in the most significant 4 bytes
+// Practical approach: pack into a 32-byte hex by appending 28 bytes of zeros after the 4-byte selector
+const action = (selector + '0'.repeat(64 - 8)) as `0x${string}`; // 8 hex chars for 4 bytes, total 32 bytes
 await writeMarketplaceAsync({
   functionName: 'callAction',
   args: [listingId, action, '0x'],
