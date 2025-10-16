@@ -15,49 +15,61 @@ Farcaster-ready marketplace mini app built on Scaffold-ETH 2. It lets creators p
 ## Contracts architecture
 
 ### Roles and components
-- **Marketplace.sol**: Router/orchestrator that stores pointers to listings and delegates all lifecycle operations to a pluggable listing-type contract implementing `IListingType`.
-- **IListingType.sol**: Lifecycle interface that any listing-type must implement. Phases: create, optional pre-buy, sale, and admin close; each has `before`, `on`, and `after` hooks.
-- **SimpleListings.sol**: A concrete `IListingType` implementation for fixed-price listings payable in ETH or an ERC-20.
+- **Marketplace.sol**: Router/orchestrator that stores pointers to listings and delegates operations to a pluggable listing-type contract implementing `IListingType`.
+- **IListingType.sol**: Minimal interface that listing-types implement: `create`, `handleAction`, and `getListing`.
+- **SimpleListings.sol**: A concrete `IListingType` for fixed-price listings payable in ETH or an ERC-20.
 - **TestERC20.sol**: Simple mintable tokens for local development (2 and 6 decimals). Only deployed on `localhost`/`hardhat`.
 
 ### Marketplace data model
-- `listingCount`: sequential marketplace-level IDs starting at 1.
-- `listings[id]`: `ListingPointer { creator, listingType, listingId }` where:
+- `listingCount`: sequential marketplace-level IDs starting at 1 (also used as the listing-type ID).
+- `listings[id]`: `ListingPointer { creator, listingType, contenthash, active }` where:
   - `listingType` is the address of the listing-type contract (e.g., `SimpleListings`).
-  - `listingId` is the inner ID returned by the listing-type on creation.
+  - `contenthash` is an arbitrary string (e.g., IPFS CID) set at creation time.
+  - `active` tracks whether the listing can accept actions like `buy`.
 
 ### Lifecycle and how contracts interact
-1) **Create**: `Marketplace.createListing(listingType, data)`
-   - Calls `beforeCreate(data)` on the `listingType`.
-   - Calls `onCreate(msg.sender, data)` which returns `innerId` (must be non-zero).
-   - Stores `ListingPointer` under new marketplace ID and calls `afterCreate`.
-   - Emits `ListingCreated(id, creator, listingType, innerId)`.
+1) **Create**: `Marketplace.createListing(listingType, contenthash, data)`
+   - Calls `IListingType(listingType).create(msg.sender, id, data)` where `id` is the new marketplace ID.
+   - Stores `ListingPointer` and emits `ListingCreated(id, creator, listingType, id, contenthash)`.
 
-2) **Optional pre-buy step**: `Marketplace.preBuyAction(id, data)`
-   - Delegates to `beforePreBuy / onPreBuy / afterPreBuy` on the `listingType` and emits `ListingPreBuy`.
-   - Useful for escrows, auctions, or reservations. `SimpleListings` treats this as a no-op.
+2) **Actions**: `Marketplace.callAction(id, action, data)`
+   - Delegates to `IListingType.handleAction(listingId=id, creator, active, caller=msg.sender, action, data)`.
+   - `action` is the 4-byte function selector (left-padded to 32 bytes) of a function exposed by the listing-type for dynamic dispatch.
+   - Emits `ListingAction(id, caller, action)`.
 
-3) **Sale**: `Marketplace.buyListing(id, data)`
-   - Calls `beforeSale / onSale / afterSale` on the `listingType`, then emits `ListingSold(id, buyer)`.
-
-4) **Close**: `Marketplace.closeListing(id, data)`
-   - Only the marketplace-level `creator` can close. Delegates to `beforeClose / onClose / afterClose` and emits `ListingClosed`.
+3) **Activation toggle**
+   - Only the listing-type can toggle `active` via `Marketplace.setActive(id, active)`.
+   - Emits `ListingActivationChanged(id, active)`.
 
 ### SimpleListings data and behavior
-- Stored as `SimpleListing { creator, paymentToken, price, ipfsHash, active }`.
-- `paymentToken == address(0)`: buyer pays in ETH by sending exactly `price` wei. ETH is forwarded directly to the creator.
-- `paymentToken != address(0)`: buyer pays in ERC-20; must approve `SimpleListings` for `price` before calling `buyListing`. No ETH is accepted in this path.
-- On successful sale, an event `SimpleListingSold(listingId, buyer, price, paymentToken)` is emitted and the listing is set inactive.
-- Only the listing `creator` can close an active listing via the marketplace; closing marks it inactive and emits `SimpleListingClosed`.
+- Stored as `SimpleListing { paymentToken, price }` mapped by `listingId` (the marketplace ID).
+- `paymentToken == address(0)`: buyer pays in ETH by sending exactly `price` wei; ETH is forwarded to the creator.
+- `paymentToken != address(0)`: buyer pays in ERC-20; buyer must approve the `SimpleListings` contract to spend `price` tokens; no ETH accepted in this path.
+- On successful sale: calls `Marketplace.setActive(listingId, false)`, emits `SimpleListingSold(listingId, buyer, price, paymentToken)`.
+- Closing: only the marketplace-level `creator` may close; deactivates and emits `SimpleListingClosed(listingId, caller)`.
 
 ### Encoding and views
-- `createListing(listingType, data)` forwards `data` to the listing-type. For `SimpleListings`, `data` must be `abi.encode(address paymentToken, uint256 price, string ipfsHash)`.
-- `getListing(id)` returns `(ListingPointer pointer, bytes data)`, where `data` is `listingType.getListing(pointer.listingId)`.
-- For `SimpleListings.getListing(listingId)`, `data` is `abi.encode(creator, paymentToken, price, ipfsHash, active)`.
+- `createListing(listingType, contenthash, data)` forwards `data` to the listing-type.
+  - For `SimpleListings`, `data` must be `abi.encode(address paymentToken, uint256 price)`.
+- `getListing(id)` returns `(creator, listingType, contenthash, active, listingData)` where `listingData` is `IListingType(listingType).getListing(id)`.
+- For `SimpleListings.getListing(listingId)`, `listingData` is `abi.encode(paymentToken, price)`.
 
 ### Events
-- Marketplace: `ListingCreated`, `ListingPreBuy`, `ListingSold`, `ListingClosed`.
+- Marketplace: `ListingCreated(uint256 id, address creator, address listingType, uint256 listingId, string contenthash)`, `ListingAction(uint256 id, address caller, bytes32 action)`, `ListingActivationChanged(uint256 listingId, bool active)`.
 - SimpleListings: `SimpleListingCreated`, `SimpleListingSold`, `SimpleListingClosed`.
+
+### Calling actions from the frontend
+- With SE-2 hooks, write to `Marketplace.callAction` and pass a selector for the action you want. For example, to buy a listing with ETH using `SimpleListings`:
+
+```ts
+// selector for: buy(uint256,address,bool,address,bytes)
+const action = '0x9570e8f9' as const; // bytes4; pass left-padded to 32 bytes
+await writeMarketplaceAsync({
+  functionName: 'callAction',
+  args: [listingId, action, '0x'],
+  value: priceWei, // only when paymentToken == address(0)
+});
+```
 
 ## EAS Reviews
 - A review schema `uint256 listingId,uint8 rating,string commentIPFSHash` is registered by `packages/hardhat/deploy/05_register_review_schema.ts` on local and known networks.
