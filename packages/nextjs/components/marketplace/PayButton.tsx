@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { zeroAddress } from "viem";
+import { keccak256, stringToHex, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
@@ -96,9 +96,12 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayBu
   const { writeContractAsync: writeTokenAsync } = useWriteContract();
 
   const doBuy = useCallback(async () => {
+    const sigHash = keccak256(stringToHex("buy(uint256,address,bool,address,bytes)"));
+    const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
+    const action = (selector + "0".repeat(64 - 8)) as `0x${string}`; // left-pad selector (4 bytes) to 32 bytes
     await writeContractAsync({
-      functionName: "buyListing",
-      args: [idBig, "0x"],
+      functionName: "callAction",
+      args: [idBig, action, "0x"],
       value: isEth && priceWei ? BigInt(priceWei) : undefined,
     });
   }, [writeContractAsync, idBig, isEth, priceWei]);

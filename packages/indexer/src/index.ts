@@ -1,41 +1,14 @@
 import { ponder } from "ponder:registry";
 import { eq } from "drizzle-orm";
-import { listings, listing_created, listing_prebuy, listing_sold, listing_closed, simple_buffer, reviews } from "ponder:schema";
-import { createPublicClient, http, zeroAddress, decodeAbiParameters, Hex } from "viem";
+import { listings, listing_actions, reviews } from "ponder:schema";
+import { createPublicClient, http, decodeAbiParameters, Hex, keccak256, stringToHex, zeroAddress } from "viem";
 import easConfig from "./easConfig.json" assert { type: "json" };
 import { easGetAttestationAbi } from "../abis/EASAbi";
-
-// Minimal ERC-20 ABI for metadata reads
-const erc20MetadataAbi = [
-  { name: "name", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { name: "symbol", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
-] as const;
 
 // Reuse one public client for reads
 const publicClient = createPublicClient({
   transport: http(process.env.PONDER_RPC_URL_31337 ?? "http://127.0.0.1:8545"),
 });
-
-async function fetchTokenMetadata(address: `0x${string}`): Promise<{ tokenName: string | null; tokenSymbol: string | null; tokenDecimals: number | null }> {
-  if (!address || address.toLowerCase() === zeroAddress) {
-    return { tokenName: "Ether", tokenSymbol: "ETH", tokenDecimals: 18 };
-  }
-  try {
-    const [name, symbol, decimals] = await Promise.all([
-      publicClient.readContract({ address, abi: erc20MetadataAbi, functionName: "name" }).catch(() => null),
-      publicClient.readContract({ address, abi: erc20MetadataAbi, functionName: "symbol" }).catch(() => null),
-      publicClient.readContract({ address, abi: erc20MetadataAbi, functionName: "decimals" }).catch(() => null),
-    ]);
-    return {
-      tokenName: typeof name === "string" ? name : null,
-      tokenSymbol: typeof symbol === "string" ? symbol : null,
-      tokenDecimals: typeof decimals === "number" ? decimals : (typeof decimals === "bigint" ? Number(decimals) : null),
-    };
-  } catch {
-    return { tokenName: null, tokenSymbol: null, tokenDecimals: null };
-  }
-}
 
 // --- IPFS helpers (resilient multi-gateway JSON fetch) ---
 const PREFERRED_GATEWAY = process.env.PONDER_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
@@ -103,211 +76,170 @@ async function fetchIpfsJson(cidOrUrl: string): Promise<any | null> {
   return null;
 }
 
-ponder.on("Marketplace:ListingCreated", async ({ event, context }) => {
+// Minimal ABI to read listing pointer + data from Marketplace
+const marketplaceGetListingAbi = [
+  {
+    type: "function",
+    name: "getListing",
+    stateMutability: "view",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [
+      { name: "creator", type: "address" },
+      { name: "listingType", type: "address" },
+      { name: "contenthash", type: "bytes32" },
+      { name: "active", type: "bool" },
+      { name: "listingData", type: "bytes" },
+    ],
+  },
+] as const;
+
+function signatureToSelector(signature: string): `0x${string}` {
+  const hash = keccak256(stringToHex(signature));
+  return (`0x${hash.slice(2, 10)}`) as `0x${string}`;
+}
+
+ponder.on("Marketplace:ListingCreated" as any, async ({ event, context }) => {
   const { db } = context;
-  const id = event.args.id.toString();
-  const creator = event.args.creator.toLowerCase();
-  const listingType = event.args.listingType.toLowerCase();
-  const listingInnerId = event.args.listingId.toString();
+  const args = (event as any).args;
+  const id = args.id.toString();
+  const creator = (args.creator as string).toLowerCase();
+  const listingType = (args.listingType as string).toLowerCase();
+  const cid = (args.contenthash as string);
 
   await db.insert(listings).values({
     id,
     creator,
     listingType,
-    listingInnerId,
+    cid, // stored as-is per app contract design
+    active: true,
     createdBlockNumber: event.block.number.toString(),
     createdBlockTimestamp: event.block.timestamp.toString(),
-    createdTxHash: event.transaction.hash,
+    createdTxHash: (event as any).transaction?.hash ?? (event as any).log?.transactionHash ?? "",
   });
 
-  // If SimpleListings data was buffered first, merge it now
-  const bufId = `${listingType}:${listingInnerId}`;
-  const buf = await db.find(simple_buffer, { id: bufId });
-  if (buf) {
-    await db.sql
-      .update(listings)
-      .set({
-        paymentToken: buf.paymentToken,
-        priceWei: buf.priceWei,
-        ipfsCid: buf.ipfsCid,
-        active: true,
-        tokenName: buf.tokenName ?? null,
-        tokenSymbol: buf.tokenSymbol ?? null,
-        tokenDecimals: buf.tokenDecimals ?? null,
-      })
-      .where(eq(listings.id, id));
+  // Read on-chain listingData to enrich token info and metadata
+  try {
+    const [/*creatorAddr*/, /*listingTypeAddr*/, /*contenthash*/, /*activeFlag*/, listingData] = (await publicClient.readContract({
+      address: (event as any).log?.address as `0x${string}`,
+      abi: marketplaceGetListingAbi,
+      functionName: "getListing",
+      args: [BigInt(id)],
+    })) as unknown as any[];
 
-    // If token metadata wasn't present in buffer, fetch now
-    if (!buf.tokenName || !buf.tokenSymbol || buf.tokenDecimals == null) {
+    if (listingData) {
       try {
-        const meta = await fetchTokenMetadata(buf.paymentToken as `0x${string}`);
-        await db.sql
-          .update(listings)
-          .set({ tokenName: meta.tokenName, tokenSymbol: meta.tokenSymbol, tokenDecimals: meta.tokenDecimals })
-          .where(eq(listings.id, id));
-      } catch {}
-    }
-
-    try {
-      if (buf.ipfsCid && typeof buf.ipfsCid === "string") {
-        const json: any | null = await fetchIpfsJson(buf.ipfsCid);
-        if (json) {
-          await db.sql
-            .update(listings)
-            .set({
-              title: typeof json?.title === "string" ? json.title : null,
-              description: typeof json?.description === "string" ? json.description : null,
-              category: typeof json?.category === "string" ? json.category : null,
-              image: typeof json?.image === "string" ? json.image : null,
-              locationId: typeof json?.locationId === "string" ? json.locationId : null,
-            })
-            .where(eq(listings.id, id));
-        }
-      }
-    } catch {}
-  }
-
-  await db.insert(listing_created).values({
-    id: `${event.transaction.hash}-${event.log.logIndex}`,
-    listingId: id,
-    creator,
-    listingType,
-    listingInnerId,
-    blockNumber: event.block.number.toString(),
-    txHash: event.transaction.hash,
-  });
-});
-
-ponder.on("Marketplace:ListingPreBuy", async ({ event, context }) => {
-  const { db } = context;
-  await db.insert(listing_prebuy).values({
-    id: `${event.transaction.hash}-${event.log.logIndex}`,
-    listingId: event.args.id.toString(),
-    buyer: event.args.buyer.toLowerCase(),
-    blockNumber: event.block.number.toString(),
-    txHash: event.transaction.hash,
-  });
-});
-
-ponder.on("Marketplace:ListingSold", async ({ event, context }) => {
-  const { db } = context;
-  await db.insert(listing_sold).values({
-    id: `${event.transaction.hash}-${event.log.logIndex}`,
-    listingId: event.args.id.toString(),
-    buyer: event.args.buyer.toLowerCase(),
-    blockNumber: event.block.number.toString(),
-    txHash: event.transaction.hash,
-  });
-
-  // Persist buyer on the listing row for downstream joins (reviews)
-  await db.sql
-    .update(listings)
-    .set({ buyer: event.args.buyer.toLowerCase(), active: false })
-    .where(eq(listings.id, event.args.id.toString()));
-});
-
-ponder.on("Marketplace:ListingClosed", async ({ event, context }) => {
-  const { db } = context;
-  await db.insert(listing_closed).values({
-    id: `${event.transaction.hash}-${event.log.logIndex}`,
-    listingId: event.args.id.toString(),
-    caller: event.args.caller.toLowerCase(),
-    blockNumber: event.block.number.toString(),
-    txHash: event.transaction.hash,
-  });
-});
-
-ponder.on("SimpleListings:SimpleListingCreated", async ({ event, context }) => {
-  const { db } = context;
-  const listingInnerId = event.args.listingId.toString();
-  const paymentToken = event.args.paymentToken.toLowerCase();
-  const priceWei = event.args.price.toString();
-  const ipfsCid = event.args.ipfsHash;
-  const listingType = (event.log.address || "").toLowerCase();
-
-  // Enrich with token metadata
-  let meta: { tokenName: string | null; tokenSymbol: string | null; tokenDecimals: number | null } | null = null;
-  try {
-    meta = await fetchTokenMetadata(paymentToken as `0x${string}`);
-  } catch {
-    meta = null;
-  }
-
-  // Try to update if Marketplace row already exists
-  const updated = await db.sql
-    .update(listings)
-    .set({
-      paymentToken,
-      priceWei,
-      ipfsCid,
-      active: true,
-      tokenName: meta?.tokenName ?? null,
-      tokenSymbol: meta?.tokenSymbol ?? null,
-      tokenDecimals: meta?.tokenDecimals ?? null,
-    })
-    .where(eq(listings.listingInnerId, listingInnerId));
-  // If not present, buffer it so Marketplace handler can merge later
-  if (!updated || (Array.isArray(updated) && updated.length === 0)) {
-    await db
-      .insert(simple_buffer)
-      .values({
-        id: `${listingType}:${listingInnerId}`,
-        listingType,
-        listingInnerId,
-        paymentToken,
-        priceWei,
-        ipfsCid,
-        tokenName: meta?.tokenName ?? null,
-        tokenSymbol: meta?.tokenSymbol ?? null,
-        tokenDecimals: meta?.tokenDecimals ?? null,
-      })
-      .onConflictDoUpdate({
-        paymentToken,
-        priceWei,
-        ipfsCid,
-        tokenName: meta?.tokenName ?? null,
-        tokenSymbol: meta?.tokenSymbol ?? null,
-        tokenDecimals: meta?.tokenDecimals ?? null,
-      });
-  }
-
-  try {
-    if (ipfsCid && typeof ipfsCid === "string") {
-      const json: any | null = await fetchIpfsJson(ipfsCid);
-      if (json) {
+        const [paymentToken, price] = decodeAbiParameters(
+          [{ type: "address" }, { type: "uint256" }],
+          listingData as Hex,
+        );
         await db.sql
           .update(listings)
           .set({
-            title: typeof json?.title === "string" ? json.title : null,
-            description: typeof json?.description === "string" ? json.description : null,
-            category: typeof json?.category === "string" ? json.category : null,
-            image: typeof json?.image === "string" ? json.image : null,
-            locationId: typeof json?.locationId === "string" ? json.locationId : null,
+            paymentToken: (paymentToken as string)?.toLowerCase?.() ?? null,
+            priceWei: (price as bigint)?.toString?.() ?? null,
           })
-          .where(eq(listings.listingInnerId, listingInnerId));
-      }
+          .where(eq(listings.id, id));
+
+        // Resolve token metadata (ETH defaults; ERC-20 reads)
+        try {
+          const pt = (paymentToken as string)?.toLowerCase?.() ?? "";
+          if (!pt || pt === zeroAddress) {
+            await db.sql
+              .update(listings)
+              .set({ tokenName: "Ether", tokenSymbol: "ETH", tokenDecimals: 18 })
+              .where(eq(listings.id, id));
+          } else {
+            const erc20MetaAbi = [
+              { name: "name", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+              { name: "symbol", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+              { name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+            ] as const;
+            const [name, symbol, decimals] = await Promise.all([
+              publicClient.readContract({ address: pt as `0x${string}`, abi: erc20MetaAbi, functionName: "name" }).catch(() => null),
+              publicClient.readContract({ address: pt as `0x${string}`, abi: erc20MetaAbi, functionName: "symbol" }).catch(() => null),
+              publicClient.readContract({ address: pt as `0x${string}`, abi: erc20MetaAbi, functionName: "decimals" }).catch(() => null),
+            ]);
+            await db.sql
+              .update(listings)
+              .set({
+                tokenName: typeof name === "string" ? name : null,
+                tokenSymbol: typeof symbol === "string" ? symbol : null,
+                tokenDecimals: typeof decimals === "number" ? decimals : (typeof decimals === "bigint" ? Number(decimals) : null),
+              })
+              .where(eq(listings.id, id));
+          }
+        } catch {}
+      } catch {}
+    }
+  } catch {}
+
+  // Fetch IPFS JSON using stored hash as-is
+  try {
+    const json: any | null = await fetchIpfsJson(cid);
+    if (json) {
+      const denorm: any = {
+        metadata: json,
+        // Top-level denormalized fields for convenient querying & UI
+        title: typeof json?.title === "string" ? json.title : null,
+        description: typeof json?.description === "string" ? json.description : null,
+        category: typeof json?.category === "string" ? json.category : null,
+        image: typeof json?.image === "string" ? json.image : null,
+        contact: typeof json?.contact === "object" ? json.contact : (typeof json?.contact === "string" ? json.contact : null),
+        tags: Array.isArray(json?.tags) ? json.tags : (typeof json?.tags === "string" ? json.tags : null),
+        price: typeof json?.price === "string" || typeof json?.price === "number" ? String(json.price) : null,
+        currency: typeof json?.currency === "string" ? json.currency : null,
+        locationId: typeof json?.locationId === "string" ? json.locationId : null,
+      };
+      await db.sql.update(listings).set(denorm).where(eq(listings.id, id));
     }
   } catch {}
 });
 
-ponder.on("SimpleListings:SimpleListingSold", async ({ event, context }) => {
+ponder.on("Marketplace:ListingAction" as any, async ({ event, context }) => {
   const { db } = context;
-  await db.sql
-    .update(listings)
-    .set({ active: false })
-    .where(eq(listings.listingInnerId, event.args.listingId.toString()));
+  const args = (event as any).args;
+  const listingId = args.id.toString();
+  const caller = (args.caller as string).toLowerCase();
+  const actionHex = (args.action as string).toLowerCase();
+  const selectorHex = actionHex.slice(0, 10) as `0x${string}`; // 0x + 8 chars
+
+  const BUY_SEL = signatureToSelector("buy(uint256,address,bool,address,bytes)");
+  const CLOSE_SEL = signatureToSelector("close(uint256,address,bool,address,bytes)");
+  let actionName: string | null = null;
+  if (selectorHex === BUY_SEL) actionName = "buy";
+  else if (selectorHex === CLOSE_SEL) actionName = "close";
+
+  await db.insert(listing_actions).values({
+    id: `${(event as any).transaction?.hash ?? (event as any).log?.transactionHash}-${(event as any).log?.logIndex ?? 0}`,
+    listingId,
+    selectorHex,
+    actionName: actionName ?? null,
+    caller,
+    blockNumber: event.block.number.toString(),
+    txHash: (event as any).transaction?.hash ?? (event as any).log?.transactionHash ?? "",
+  });
+
+  if (actionName === "buy") {
+    await db.sql.update(listings).set({ buyer: caller }).where(eq(listings.id, listingId));
+  }
 });
 
-ponder.on("SimpleListings:SimpleListingClosed", async ({ event, context }) => {
+ponder.on("Marketplace:ListingActivationChanged" as any, async ({ event, context }) => {
   const { db } = context;
+  const args = (event as any).args;
   await db.sql
     .update(listings)
-    .set({ active: false })
-    .where(eq(listings.listingInnerId, event.args.listingId.toString()));
+    .set({ active: args.active as boolean })
+    .where(eq(listings.id, args.listingId.toString()));
 });
+
+// (No SimpleListings event handlers required)
 
 // --- EAS Reviews indexing ---
-const REVIEW_SCHEMA_UID = easConfig.reviewSchemaUid as string | undefined;
+// Read new per-chain keyed shape only
+const CHAIN_ID = Number(process.env.PONDER_CHAIN_ID || 31337);
+const fileEntry = (easConfig as any)[String(CHAIN_ID)] as any;
+const REVIEW_SCHEMA_UID = fileEntry?.reviewSchemaUid as string | undefined;
 
 ponder.on("EAS:Attested", async ({ event, context }) => {
   const { db } = context;
@@ -324,7 +256,7 @@ ponder.on("EAS:Attested", async ({ event, context }) => {
   try {
     const uidRaw = event.args.uid as `0x${string}`;
     const attestation = await publicClient.readContract({
-      address: easConfig.eas as `0x${string}`,
+      address: fileEntry?.eas as `0x${string}`,
       abi: easGetAttestationAbi,
       functionName: "getAttestation",
       args: [uidRaw],
@@ -380,11 +312,9 @@ ponder.on("EAS:Attested", async ({ event, context }) => {
 
     if (buyerReviewedFlag) {
       await db.sql.update(listings).set({ buyerReviewed: true }).where(eq(listings.id, listingIdStr));
-      await db.sql.update(listing_sold).set({ buyerReviewed: true }).where(eq(listing_sold.listingId, listingIdStr));
     }
     if (sellerReviewedFlag) {
       await db.sql.update(listings).set({ sellerReviewed: true }).where(eq(listings.id, listingIdStr));
-      await db.sql.update(listing_sold).set({ sellerReviewed: true }).where(eq(listing_sold.listingId, listingIdStr));
     }
   }
 });

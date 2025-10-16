@@ -23,6 +23,7 @@ if (isIpfs) {
   nextConfig.trailingSlash = true;
   nextConfig.images = {
     unoptimized: true,
+    dangerouslyAllowSVG: true,
   };
 }
 
@@ -54,7 +55,7 @@ if (!isIpfs) {
       // ignore invalid env value
     }
   }
-  nextConfig.images = { remotePatterns } as any;
+  nextConfig.images = { remotePatterns, dangerouslyAllowSVG: true } as any;
 }
 
 module.exports = nextConfig;

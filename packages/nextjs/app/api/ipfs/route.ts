@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     upstream.append("file", file as any, ((file as any)?.name as string) || "upload");
     // Metadata and options must be JSON strings (not Blobs) per Pinata expectations
     upstream.append("pinataMetadata", JSON.stringify({ name: ((file as any)?.name as string) || "upload" }));
-    upstream.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
+    upstream.append("pinataOptions", JSON.stringify({ cidVersion: 0 }));
 
     const headers: Record<string, string> = {};
     if (PINATA_JWT) {

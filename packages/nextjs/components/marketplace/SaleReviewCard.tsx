@@ -120,7 +120,7 @@ export const SaleReviewCard = ({ sale, role, onSubmitted }: Props) => {
         <>
           <div className="flex items-center gap-2">
             <div className="relative inline-block select-none" aria-label="rating-stars">
-              <RatingStars value={rating} size={20} />
+              <RatingStars value={rating} size={22} />
               <div className="absolute inset-0 flex">
                 {[1, 2, 3, 4, 5].map(s => (
                   <button

@@ -1192,47 +1192,7 @@ const deployedContracts = {
       abi: [
         {
           inputs: [],
-          name: "AfterCloseFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "AfterCreateFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "AfterPreBuyFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "AfterSaleFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "BeforeCloseFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "BeforeCreateFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "BeforePreBuyFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "BeforeSaleFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "InnerIdZero",
+          name: "ListingCreationFailed",
           type: "error",
         },
         {
@@ -1242,27 +1202,7 @@ const deployedContracts = {
         },
         {
           inputs: [],
-          name: "ListingTypeZeroAddress",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "NotCreator",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "OnCloseFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "OnPreBuyFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "OnSaleFailed",
+          name: "OnlyListingTypeCanModify",
           type: "error",
         },
         {
@@ -1280,8 +1220,33 @@ const deployedContracts = {
               name: "caller",
               type: "address",
             },
+            {
+              indexed: false,
+              internalType: "bytes32",
+              name: "action",
+              type: "bytes32",
+            },
           ],
-          name: "ListingClosed",
+          name: "ListingAction",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+          ],
+          name: "ListingActivationChanged",
           type: "event",
         },
         {
@@ -1311,54 +1276,27 @@ const deployedContracts = {
               name: "listingId",
               type: "uint256",
             },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "contenthash",
+              type: "string",
+            },
           ],
           name: "ListingCreated",
           type: "event",
         },
         {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "id",
-              type: "uint256",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "buyer",
-              type: "address",
-            },
-          ],
-          name: "ListingPreBuy",
-          type: "event",
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "uint256",
-              name: "id",
-              type: "uint256",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "buyer",
-              type: "address",
-            },
-          ],
-          name: "ListingSold",
-          type: "event",
-        },
-        {
           inputs: [
             {
               internalType: "uint256",
               name: "id",
               type: "uint256",
+            },
+            {
+              internalType: "bytes32",
+              name: "action",
+              type: "bytes32",
             },
             {
               internalType: "bytes",
@@ -1366,27 +1304,9 @@ const deployedContracts = {
               type: "bytes",
             },
           ],
-          name: "buyListing",
+          name: "callAction",
           outputs: [],
           stateMutability: "payable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "id",
-              type: "uint256",
-            },
-            {
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
-            },
-          ],
-          name: "closeListing",
-          outputs: [],
-          stateMutability: "nonpayable",
           type: "function",
         },
         {
@@ -1395,6 +1315,11 @@ const deployedContracts = {
               internalType: "address",
               name: "listingType",
               type: "address",
+            },
+            {
+              internalType: "string",
+              name: "contenthash",
+              type: "string",
             },
             {
               internalType: "bytes",
@@ -1424,30 +1349,28 @@ const deployedContracts = {
           name: "getListing",
           outputs: [
             {
-              components: [
-                {
-                  internalType: "address",
-                  name: "creator",
-                  type: "address",
-                },
-                {
-                  internalType: "address",
-                  name: "listingType",
-                  type: "address",
-                },
-                {
-                  internalType: "uint256",
-                  name: "listingId",
-                  type: "uint256",
-                },
-              ],
-              internalType: "struct Marketplace.ListingPointer",
-              name: "pointer",
-              type: "tuple",
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "listingType",
+              type: "address",
+            },
+            {
+              internalType: "string",
+              name: "contenthash",
+              type: "string",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
             },
             {
               internalType: "bytes",
-              name: "data",
+              name: "listingData",
               type: "bytes",
             },
           ],
@@ -1488,9 +1411,14 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
+              internalType: "string",
+              name: "contenthash",
+              type: "string",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
             },
           ],
           stateMutability: "view",
@@ -1500,18 +1428,18 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "uint256",
-              name: "id",
+              name: "listingId",
               type: "uint256",
             },
             {
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
+              internalType: "bool",
+              name: "active",
+              type: "bool",
             },
           ],
-          name: "preBuyAction",
+          name: "setActive",
           outputs: [],
-          stateMutability: "payable",
+          stateMutability: "nonpayable",
           type: "function",
         },
       ],
@@ -1681,21 +1609,6 @@ const deployedContracts = {
         },
         {
           inputs: [],
-          name: "AfterCloseFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "AlreadyClosed",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "BeforeCloseFailed",
-          type: "error",
-        },
-        {
-          inputs: [],
           name: "Erc20TransferFailed",
           type: "error",
         },
@@ -1707,11 +1620,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "IncorrectEth",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "IpfsHashEmpty",
           type: "error",
         },
         {
@@ -1741,12 +1649,17 @@ const deployedContracts = {
         },
         {
           inputs: [],
-          name: "OnCloseFailed",
+          name: "NotSelf",
           type: "error",
         },
         {
           inputs: [],
           name: "PriceZero",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "UnknownAction",
           type: "error",
         },
         {
@@ -1795,12 +1708,6 @@ const deployedContracts = {
               name: "price",
               type: "uint256",
             },
-            {
-              indexed: false,
-              internalType: "string",
-              name: "ipfsHash",
-              type: "string",
-            },
           ],
           name: "SimpleListingCreated",
           type: "event",
@@ -1845,60 +1752,17 @@ const deployedContracts = {
             },
             {
               internalType: "address",
-              name: "caller",
+              name: "creator",
               type: "address",
             },
             {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "afterClose",
-          outputs: [
-            {
               internalType: "bool",
-              name: "",
+              name: "active",
               type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-            {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "afterCreate",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
             },
             {
               internalType: "address",
-              name: "",
+              name: "buyer",
               type: "address",
             },
             {
@@ -1907,15 +1771,9 @@ const deployedContracts = {
               type: "bytes",
             },
           ],
-          name: "afterPreBuy",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
+          name: "buy",
+          outputs: [],
+          stateMutability: "payable",
           type: "function",
         },
         {
@@ -1927,32 +1785,13 @@ const deployedContracts = {
             },
             {
               internalType: "address",
-              name: "",
+              name: "creator",
               type: "address",
             },
             {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "afterSale",
-          outputs: [
-            {
               internalType: "bool",
-              name: "",
+              name: "active",
               type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
             },
             {
               internalType: "address",
@@ -1965,112 +1804,34 @@ const deployedContracts = {
               type: "bytes",
             },
           ],
-          name: "beforeClose",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
+          name: "close",
+          outputs: [],
+          stateMutability: "nonpayable",
           type: "function",
         },
         {
           inputs: [
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
             {
               internalType: "bytes",
               name: "data",
               type: "bytes",
             },
           ],
-          name: "beforeCreate",
+          name: "create",
           outputs: [
             {
               internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-            {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "beforePreBuy",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-            {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "beforeSale",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "caller",
-              type: "address",
-            },
-          ],
-          name: "closeListing",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
+              name: "success",
               type: "bool",
             },
           ],
@@ -2100,17 +1861,50 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+            {
+              internalType: "bytes32",
+              name: "action",
+              type: "bytes32",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "handleAction",
+          outputs: [],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
               name: "",
               type: "uint256",
             },
           ],
           name: "listings",
           outputs: [
-            {
-              internalType: "address",
-              name: "creator",
-              type: "address",
-            },
             {
               internalType: "address",
               name: "paymentToken",
@@ -2120,16 +1914,6 @@ const deployedContracts = {
               internalType: "uint256",
               name: "price",
               type: "uint256",
-            },
-            {
-              internalType: "string",
-              name: "ipfsHash",
-              type: "string",
-            },
-            {
-              internalType: "bool",
-              name: "active",
-              type: "bool",
             },
           ],
           stateMutability: "view",
@@ -2148,145 +1932,11 @@ const deployedContracts = {
           stateMutability: "view",
           type: "function",
         },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "caller",
-              type: "address",
-            },
-            {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "onClose",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "creator",
-              type: "address",
-            },
-            {
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
-            },
-          ],
-          name: "onCreate",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-            {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "onPreBuy",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "payable",
-          type: "function",
-        },
-        {
-          inputs: [
-            {
-              internalType: "uint256",
-              name: "listingId",
-              type: "uint256",
-            },
-            {
-              internalType: "address",
-              name: "buyer",
-              type: "address",
-            },
-            {
-              internalType: "bytes",
-              name: "",
-              type: "bytes",
-            },
-          ],
-          name: "onSale",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
-          stateMutability: "payable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "simpleListingCount",
-          outputs: [
-            {
-              internalType: "uint256",
-              name: "",
-              type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
       ],
       inheritedFunctions: {
-        afterClose: "contracts/IListingType.sol",
-        afterCreate: "contracts/IListingType.sol",
-        afterPreBuy: "contracts/IListingType.sol",
-        afterSale: "contracts/IListingType.sol",
-        beforeClose: "contracts/IListingType.sol",
-        beforeCreate: "contracts/IListingType.sol",
-        beforePreBuy: "contracts/IListingType.sol",
-        beforeSale: "contracts/IListingType.sol",
+        create: "contracts/IListingType.sol",
         getListing: "contracts/IListingType.sol",
-        onClose: "contracts/IListingType.sol",
-        onCreate: "contracts/IListingType.sol",
-        onPreBuy: "contracts/IListingType.sol",
-        onSale: "contracts/IListingType.sol",
+        handleAction: "contracts/IListingType.sol",
       },
       deployedOnBlock: 3,
     },

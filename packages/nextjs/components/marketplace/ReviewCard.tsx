@@ -4,7 +4,7 @@ export const ReviewCard = ({ rating, comment, reviewer }: { rating: number; comm
   return (
     <div className="p-3 border rounded-xl">
       <div className="flex items-center gap-2">
-        <RatingStars value={rating} size={16} />
+        <RatingStars value={rating} size={18} />
         <span className="text-sm opacity-70">{rating.toFixed?.(1) ?? rating}/5</span>
       </div>
       <div className="text-sm opacity-80 mt-1">{comment}</div>

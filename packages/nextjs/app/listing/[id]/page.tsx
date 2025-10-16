@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useParams } from "next/navigation";
 import { Hex, decodeAbiParameters, formatUnits } from "viem";
 import { useAccount } from "wagmi";
+import FcAddressRating from "~~/components/marketplace/FcAddressRating";
 import { PayButton } from "~~/components/marketplace/PayButton";
 import { Address } from "~~/components/scaffold-eth/Address/Address";
-import { useDeployedContractInfo } from "~~/hooks/scaffold-eth/useDeployedContractInfo";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
-import { fetchJsonFromCid, resolveIpfsUrl } from "~~/services/ipfs/fetch";
+import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 
 const ListingDetailsPage = () => {
   const params = useParams<{ id: string }>();
@@ -27,50 +27,24 @@ const ListingDetailsPage = () => {
     functionName: "getListing",
     args: [idNum],
   });
-  const { data: simpleListingsInfo } = useDeployedContractInfo("SimpleListings");
-
-  // decoder registry keyed by listing type contract address
-  const decoders = useMemo(() => {
-    const map = new Map<string, (data: Hex) => any>();
-    if (simpleListingsInfo?.address) {
-      map.set(simpleListingsInfo.address.toLowerCase(), (bytes: Hex) => {
-        const [creator, paymentToken, price, ipfsHash, active] = decodeAbiParameters(
-          [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "string" }, { type: "bool" }],
-          bytes,
-        );
-        return { creator, paymentToken, price, ipfsHash, active };
-      });
-    }
-    return map;
-  }, [simpleListingsInfo?.address]);
+  // decoder for current listing type data: (paymentToken,address price,uint256)
+  const decodeListingData = useCallback((bytes: Hex) => {
+    const [paymentToken, price] = decodeAbiParameters([{ type: "address" }, { type: "uint256" }], bytes);
+    return { paymentToken, price };
+  }, []);
 
   const pointer = useMemo(() => (ptr ? (ptr as any)[0] : undefined), [ptr]);
   const listingTypeDataBytes = useMemo(() => (ptr ? (ptr as any)[1] : undefined), [ptr]);
 
   useEffect(() => {
     if (!pointer || !listingTypeDataBytes) return;
-    const lt = (pointer.listingType as string | undefined)?.toLowerCase?.();
-    const decoder = lt ? decoders.get(lt) : undefined;
-    const doWork = async () => {
-      let decoded: any | undefined;
-      try {
-        decoded = decoder ? decoder(listingTypeDataBytes as Hex) : undefined;
-      } catch {
-        // ignore
-      }
-      let metadata: any | undefined;
-      const maybeIpfs = decoded?.ipfsHash || decoded?.metadata || undefined;
-      if (maybeIpfs && typeof maybeIpfs === "string") {
-        try {
-          metadata = await fetchJsonFromCid(maybeIpfs);
-        } catch {
-          // ignore metadata fetch failure
-        }
-      }
-      setData({ pointer, decoded, metadata, raw: !decoded ? listingTypeDataBytes : undefined });
-    };
-    void doWork();
-  }, [pointer, listingTypeDataBytes, decoders]);
+    let decoded: any | undefined;
+    try {
+      decoded = decodeListingData(listingTypeDataBytes as Hex);
+    } catch {}
+    const metadata = indexed?.metadata;
+    setData({ pointer, decoded, metadata, raw: !decoded ? listingTypeDataBytes : undefined });
+  }, [pointer, listingTypeDataBytes, decodeListingData, indexed?.metadata]);
   useEffect(() => {
     setData(null);
   }, [params?.id]);
@@ -102,35 +76,39 @@ const ListingDetailsPage = () => {
           body: JSON.stringify({
             query: `
               query ListingById($id: String!) {
-                listingss(where: { id: $id }, limit: 1) {
-                  items {
-                    id
-                    creator
-                    listingType
-                    listingInnerId
-                    paymentToken
-                    priceWei
-                    ipfsCid
-                    active
-                    tokenName
-                    tokenSymbol
-                    tokenDecimals
-                    title
-                    description
-                    category
-                    image
-                    locationId
-                    createdBlockNumber
-                    createdBlockTimestamp
-                    createdTxHash
-                  }
+                listings(id: $id) {
+                  id
+                  creator
+                  listingType
+                  cid
+                  active
+                  title
+                  description
+                  category
+                  image
+                  contact
+                  tags
+                  price
+                  currency
+                  locationId
+                  createdBlockNumber
+                  createdBlockTimestamp
+                  createdTxHash
+                  paymentToken
+                  priceWei
+                  tokenName
+                  tokenSymbol
+                  tokenDecimals
+                  buyer
+                  buyerReviewed
+                  sellerReviewed
                 }
               }`,
             variables: { id },
           }),
         });
         const json = await res.json();
-        const item = json?.data?.listingss?.items?.[0] || null;
+        const item = json?.data?.listings || null;
         setIndexed(item);
       } catch {
         setIndexed(null);
@@ -141,18 +119,18 @@ const ListingDetailsPage = () => {
   }, [params?.id]);
 
   const imageUrl = useMemo(() => {
-    const cid = data?.metadata?.image || indexed?.image;
+    const cid = data?.image || indexed?.image;
     return resolveIpfsUrl(cid) || cid || null;
-  }, [data?.metadata?.image, indexed?.image]);
+  }, [data?.image, indexed?.image]);
 
-  const title = data?.metadata?.title || indexed?.title || `Listing ${params?.id}`;
-  const description = data?.metadata?.description || indexed?.description || "";
-  const category = data?.metadata?.category || indexed?.category || "";
+  const title = data?.title || indexed?.title || `Listing ${params?.id}`;
+  const description = data?.description || indexed?.description || "";
+  const category = data?.category || indexed?.category || "";
   const active = data?.decoded?.active ?? indexed?.active ?? true;
   const seller = data?.pointer?.creator || indexed?.creator || undefined;
 
   const tags = useMemo(() => {
-    const raw = (data?.metadata?.tags ?? (indexed as any)?.tags) as unknown;
+    const raw = (data?.tags ?? (indexed as any)?.tags) as unknown;
     if (!raw) return [] as string[];
     try {
       if (Array.isArray(raw)) return (raw as any[]).map(v => String(v)).filter(Boolean);
@@ -163,29 +141,37 @@ const ListingDetailsPage = () => {
           .filter(Boolean);
     } catch {}
     return [] as string[];
-  }, [data?.metadata?.tags, indexed]);
+  }, [data?.tags, indexed]);
 
   const priceLabel = useMemo(() => {
+    // Prefer indexed numeric fields when available
     try {
-      const wei =
-        data?.decoded?.price != null
-          ? (data.decoded.price as bigint)
-          : indexed?.priceWei
-            ? BigInt(indexed.priceWei)
-            : 0n;
-      const decimals = typeof indexed?.tokenDecimals === "number" ? indexed.tokenDecimals : 18;
-      const symbol = indexed?.tokenSymbol || "ETH";
-      const amount = formatUnits(wei, decimals);
-      return `${amount} ${symbol}`;
-    } catch {
-      if (data?.metadata?.price && data?.metadata?.currency) return `${data.metadata.price} ${data.metadata.currency}`;
-      return "0";
-    }
+      if (indexed?.priceWei) {
+        const wei = BigInt(indexed.priceWei as string);
+        const decimals = typeof indexed.tokenDecimals === "number" ? indexed.tokenDecimals : 18;
+        const symbol = indexed?.tokenSymbol || "ETH";
+        const amount = formatUnits(wei, decimals);
+        return `${amount} ${symbol}`;
+      }
+      // Fallback to on-chain decoded price (assumed ETH)
+      if (data?.decoded?.price != null) {
+        const wei = data.decoded.price as bigint;
+        const amount = formatUnits(wei, 18);
+        return `${amount} ETH`;
+      }
+    } catch {}
+
+    // Final fallback to string price/currency from indexer or metadata
+    if (indexed?.price && indexed?.currency) return `${indexed.price} ${indexed.currency}`;
+    if (data?.metadata?.price && data?.metadata?.currency) return `${data.metadata.price} ${data.metadata.currency}`;
+    return "0";
   }, [
-    data?.decoded?.price,
     indexed?.priceWei,
     indexed?.tokenDecimals,
     indexed?.tokenSymbol,
+    data?.decoded?.price,
+    indexed?.price,
+    indexed?.currency,
     data?.metadata?.price,
     data?.metadata?.currency,
   ]);
@@ -207,6 +193,19 @@ const ListingDetailsPage = () => {
     const years = Math.floor(months / 12);
     return `${years}y ago`;
   }, [indexed?.createdBlockTimestamp]);
+
+  // Derive PayButton props from indexed values with on-chain fallbacks
+  const payPriceWei = useMemo(
+    () =>
+      (indexed?.priceWei as string | undefined) ??
+      (data?.decoded?.price != null ? String(data.decoded.price) : undefined),
+    [indexed?.priceWei, data?.decoded?.price],
+  );
+
+  const payToken = useMemo(
+    () => (indexed?.paymentToken as string | undefined) ?? (data?.decoded?.paymentToken as string | undefined),
+    [indexed?.paymentToken, data?.decoded?.paymentToken],
+  );
 
   // (back navigation handled globally in Header BackButton)
 
@@ -249,11 +248,12 @@ const ListingDetailsPage = () => {
         ) : null}
 
         <div className="space-y-2">
-          <div className="opacity-70 text-sm flex items-center gap-2">
+          <div className="opacity-70 text-sm flex items-center gap-2 flex-wrap">
             {postedAgo ? <span>Posted {postedAgo} by</span> : null}
             {seller ? (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-2">
                 <Address address={seller as `0x${string}`} disableAddressLink={true} />
+                <FcAddressRating address={seller as `0x${string}`} />
               </span>
             ) : null}
           </div>
@@ -281,8 +281,9 @@ const ListingDetailsPage = () => {
             {indexed?.id ? (
               <PayButton
                 listingId={indexed.id}
-                priceWei={indexed.priceWei}
-                paymentToken={indexed.paymentToken}
+                // For ETH payments, pass decoded values when available (non-ETH handled via approval in button)
+                priceWei={payPriceWei}
+                paymentToken={payToken}
                 disabled={!active}
               />
             ) : null}
@@ -291,14 +292,14 @@ const ListingDetailsPage = () => {
 
         {!data ? <p className="opacity-70">Loading details…</p> : null}
 
-        {data?.metadata?.contact || indexed?.contact ? (
+        {data?.contact || (indexed as any)?.contact ? (
           <details className="collapse collapse-arrow bg-base-200">
             <summary className="collapse-title px-0 font-medium">Contact preferences</summary>
             <div className="collapse-content">
               <div className="p-0">
-                {typeof (data?.metadata?.contact ?? indexed?.contact) === "object" ? (
+                {typeof (data?.contact ?? (indexed as any)?.contact) === "object" ? (
                   <ul className="space-y-0">
-                    {Object.entries((data?.metadata?.contact ?? indexed?.contact) as Record<string, string>)
+                    {Object.entries((data?.contact ?? (indexed as any)?.contact) as Record<string, string>)
                       .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
                       .map(([k, v]) => (
                         <li key={k} className="flex items-center">
@@ -309,7 +310,7 @@ const ListingDetailsPage = () => {
                       ))}
                   </ul>
                 ) : (
-                  <div className="break-all">{(data?.metadata?.contact ?? indexed?.contact) as string}</div>
+                  <div className="break-all">{(data?.contact ?? (indexed as any)?.contact) as string}</div>
                 )}
               </div>
             </div>

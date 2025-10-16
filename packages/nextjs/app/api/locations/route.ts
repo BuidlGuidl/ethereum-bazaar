@@ -64,19 +64,22 @@ export async function GET(req: Request) {
         loc.lng = String(coords.longitude ?? loc.lng ?? "");
         loc.lat = String(coords.latitude ?? loc.lat ?? "");
       }
-      if (loc.akas && typeof loc.akas === "string") {
-        try {
-          loc.akas = JSON.parse(loc.akas);
-        } catch {}
-      }
       return loc;
     });
     if (q) {
       locations = locations.filter(loc => {
         const name = (loc.name || "").toLowerCase();
         const id = (loc.id || "").toLowerCase();
-        const akas: string[] = Array.isArray(loc.akas) ? loc.akas : [];
-        const akaMatch = akas.some(a => (a || "").toLowerCase().includes(q));
+        let akasForFilter: string[] = [];
+        if (Array.isArray((loc as any).akas)) {
+          akasForFilter = (loc as any).akas as string[];
+        } else if (typeof (loc as any).akas === "string") {
+          try {
+            const parsed = JSON.parse((loc as any).akas as string);
+            if (Array.isArray(parsed)) akasForFilter = parsed as string[];
+          } catch {}
+        }
+        const akaMatch = akasForFilter.some(a => (a || "").toLowerCase().includes(q));
         return name.includes(q) || id.includes(q) || akaMatch;
       });
     }

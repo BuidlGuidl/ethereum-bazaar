@@ -29,6 +29,7 @@ export default function NewLocationPage() {
   const [initialDisplayName, setInitialDisplayName] = useState<string>("");
   const [showMap, setShowMap] = useState(true);
   const [stage, setStage] = useState<"search" | "form">("search");
+  const [loading, setLoading] = useState<boolean>(false);
 
   // const selected = useMemo(() => ({ lat, lng, radius }), [lat, lng, radius]);
 
@@ -37,6 +38,7 @@ export default function NewLocationPage() {
       const q = query.trim();
       if (q.length < 3) {
         setResults([]);
+        setLoading(false);
         return;
       }
       try {
@@ -48,8 +50,14 @@ export default function NewLocationPage() {
         }
       } catch {
         setResults([]);
+      } finally {
+        setLoading(false);
       }
     };
+    const q = query.trim();
+    if (q.length >= 3) {
+      setLoading(true);
+    }
     const id = setTimeout(run, 400);
     return () => clearTimeout(id);
   }, [query]);
@@ -119,6 +127,15 @@ export default function NewLocationPage() {
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
+          {loading && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="loading loading-spinner loading-md" />
+              <span className="opacity-70 text-sm">Searching…</span>
+            </div>
+          )}
+          {!loading && query.trim().length >= 3 && results.length === 0 && (
+            <div className="mt-2 opacity-70 text-sm">no locations found for that search.</div>
+          )}
           {results.length > 0 && (
             <div className="rounded-xl border bg-base-100 max-h-60 overflow-y-auto divide-y divide-base-200">
               {results.map(r => (

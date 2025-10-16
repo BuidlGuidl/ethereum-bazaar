@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { Cormorant_Garamond } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { NextPage } from "next";
-
-const MapRadius = dynamic(() => import("~~/components/marketplace/MapRadiusGL"), { ssr: false });
+import MapRadius from "~~/components/marketplace/MapRadiusGL";
 
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"] });
 
@@ -20,18 +18,32 @@ const Home: NextPage = () => {
   const [locations, setLocations] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
   const [loadingSelected, setLoadingSelected] = useState(false);
+  const [loadingLocations, setLoadingLocations] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadingLocations(true);
     const run = async () => {
       const q = query.trim();
-      const res = await fetch(`/api/locations?all=1&q=${encodeURIComponent(q)}`);
-      if (res.ok) {
-        const json = await res.json();
-        setLocations(Array.isArray(json.locations) ? json.locations : []);
+      try {
+        const res = await fetch(`/api/locations?all=1&q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (!cancelled) setLocations(Array.isArray(json.locations) ? json.locations : []);
+        } else {
+          if (!cancelled) setLocations([]);
+        }
+      } catch {
+        if (!cancelled) setLocations([]);
+      } finally {
+        if (!cancelled) setLoadingLocations(false);
       }
     };
     const id = setTimeout(run, 300);
-    return () => clearTimeout(id);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [query]);
 
   // Redirect to user's selected default location unless explicitly on Home (?home=1)
@@ -110,34 +122,43 @@ const Home: NextPage = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {locations.map(l => (
-              <button
-                key={l.id}
-                className="card bg-base-100 border border-base-300 hover:border-primary/60 transition-colors text-left cursor-pointer"
-                onClick={async () => {
-                  setSelected(null);
-                  setLoadingSelected(true);
-                  try {
-                    const res = await fetch(`/api/locations/${encodeURIComponent(l.id)}`);
-                    if (res.ok) {
-                      const json = await res.json();
-                      setSelected(json.location || l);
-                    } else {
-                      setSelected(l);
-                    }
-                  } finally {
-                    setLoadingSelected(false);
-                    const checkbox = document.getElementById("location-preview-modal") as HTMLInputElement | null;
-                    if (checkbox) checkbox.checked = true;
-                  }
-                }}
-              >
-                <div className="card-body p-3">
-                  <div className="card-title text-base">{l.name || l.id}</div>
-                </div>
-              </button>
-            ))}
-            {locations.length === 0 && <div className="opacity-70">No locations found. Try a different search.</div>}
+            {loadingLocations ? (
+              <div className="col-span-1 md:col-span-2 lg:col-span-4 flex items-center justify-center py-8">
+                <span className="loading loading-spinner loading-md" />
+                <span className="ml-2 opacity-70">Loading locations…</span>
+              </div>
+            ) : (
+              <>
+                {locations.map(l => (
+                  <button
+                    key={l.id}
+                    className="card bg-base-100 border border-base-300 hover:border-primary/60 transition-colors text-left cursor-pointer"
+                    onClick={async () => {
+                      setSelected(null);
+                      setLoadingSelected(true);
+                      try {
+                        const res = await fetch(`/api/locations/${encodeURIComponent(l.id)}`);
+                        if (res.ok) {
+                          const json = await res.json();
+                          setSelected(json.location || l);
+                        } else {
+                          setSelected(l);
+                        }
+                      } finally {
+                        setLoadingSelected(false);
+                        const checkbox = document.getElementById("location-preview-modal") as HTMLInputElement | null;
+                        if (checkbox) checkbox.checked = true;
+                      }
+                    }}
+                  >
+                    <div className="card-body p-3">
+                      <div className="card-title text-base">{l.name || l.id}</div>
+                    </div>
+                  </button>
+                ))}
+                {locations.length === 0 && <div className="opacity-70">No locations found in that search.</div>}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -179,59 +200,6 @@ const Home: NextPage = () => {
                       ))}
                     </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                    {selected.radiusMiles != null && (
-                      <div>
-                        <span className="opacity-70">Radius:</span>{" "}
-                        {(() => {
-                          const v = Number(selected.radiusMiles);
-                          return Number.isFinite(v) ? `${v.toFixed(2)} mi` : String(selected.radiusMiles);
-                        })()}
-                      </div>
-                    )}
-                    {selected.lat != null && selected.lng != null && (
-                      <div>
-                        <span className="opacity-70">Coords:</span>{" "}
-                        {(() => {
-                          const la = Number(selected.lat);
-                          const ln = Number(selected.lng);
-                          return Number.isFinite(la) && Number.isFinite(ln)
-                            ? `${la.toFixed(5)}, ${ln.toFixed(5)}`
-                            : `${String(selected.lat)}, ${String(selected.lng)}`;
-                        })()}
-                      </div>
-                    )}
-                    {selected.temporary != null && String(selected.temporary) !== "" && (
-                      <div>
-                        <span className="opacity-70">Temporary:</span>{" "}
-                        {String(selected.temporary) === "1" || selected.temporary === true ? "Yes" : "No"}
-                      </div>
-                    )}
-                    {(selected.startsAt || selected.endsAt) && (
-                      <div className="sm:col-span-2">
-                        <span className="opacity-70">Schedule:</span>{" "}
-                        {(() => {
-                          const s = selected.startsAt ? new Date(Number(selected.startsAt)) : null;
-                          const e = selected.endsAt ? new Date(Number(selected.endsAt)) : null;
-                          const sf = s && !Number.isNaN(s.valueOf()) ? s.toLocaleString() : null;
-                          const ef = e && !Number.isNaN(e.valueOf()) ? e.toLocaleString() : null;
-                          if (sf && ef) return `${sf} → ${ef}`;
-                          if (sf) return `Starts ${sf}`;
-                          if (ef) return `Ends ${ef}`;
-                          return "";
-                        })()}
-                      </div>
-                    )}
-                    {selected.createdAt && (
-                      <div className="sm:col-span-2">
-                        <span className="opacity-70">Created:</span>{" "}
-                        {(() => {
-                          const d = new Date(Number(selected.createdAt));
-                          return !Number.isNaN(d.valueOf()) ? d.toLocaleString() : String(selected.createdAt);
-                        })()}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
               <button

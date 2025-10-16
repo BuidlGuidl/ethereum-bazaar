@@ -19,11 +19,11 @@
   name: "light";
 
   /* Encaustic Mediterranean palette */
-  --color-primary: #A0522D; /* terracotta */
+  --color-primary: #C62606; /* terracotta */
   --color-primary-content: #ffffff;
-  --color-secondary: #78B7C5; /* sky blue */
+  --color-secondary: #669BBC; /* sky blue */
   --color-secondary-content: #0f172a;
-  --color-accent: #CFAE7A; /* warm brass from logo highlight */
+  --color-accent: #F5E9D3; /* warm brass from logo highlight */
   --color-accent-content: #0f172a;
   --color-neutral: #2B2119; /* warm espresso */
   --color-neutral-content: #F8F5F0;

@@ -1,28 +1,69 @@
+import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { formatUnits } from "viem";
+import { Hex, decodeAbiParameters, formatUnits } from "viem";
+import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
 import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 
 export interface ListingCardProps {
   id: string | number;
   title: string;
-  priceWei?: string | bigint;
-  tokenDecimals?: number;
-  tokenSymbol?: string;
   imageUrl?: string;
+  priceWei?: string | bigint | null;
+  tokenSymbol?: string | null;
+  tokenDecimals?: number | null;
 }
 
-export const ListingCard = ({ id, title, priceWei, tokenDecimals, tokenSymbol, imageUrl }: ListingCardProps) => {
+export const ListingCard = ({
+  id,
+  title,
+  imageUrl,
+  priceWei: priceWeiProp,
+  tokenSymbol: tokenSymbolProp,
+  tokenDecimals: tokenDecimalsProp,
+}: ListingCardProps) => {
   const resolved = resolveIpfsUrl(imageUrl) || imageUrl;
+  const idBig = useMemo(() => BigInt(typeof id === "number" ? id : id.toString()), [id]);
+  const { data: listingRes } = useScaffoldReadContract({
+    contractName: "Marketplace",
+    functionName: "getListing",
+    args: [idBig],
+    watch: false,
+  } as any);
+  const listingDataBytes = useMemo(() => (listingRes ? (listingRes as any)[1] : undefined), [listingRes]);
+  const { priceWei, tokenSymbol, tokenDecimals } = useMemo(() => {
+    // Prefer indexer-provided values when available
+    if (priceWeiProp != null && tokenSymbolProp) {
+      try {
+        const parsedWei = typeof priceWeiProp === "bigint" ? priceWeiProp : BigInt(priceWeiProp);
+        const decimals = typeof tokenDecimalsProp === "number" && tokenDecimalsProp > 0 ? tokenDecimalsProp : 18;
+        return { priceWei: parsedWei, tokenSymbol: tokenSymbolProp, tokenDecimals: decimals } as const;
+      } catch {
+        // fall through to on-chain decode
+      }
+    }
+    try {
+      if (!listingDataBytes) return { priceWei: 0n, tokenSymbol: "ETH", tokenDecimals: 18 } as const;
+      const [paymentToken, price] = decodeAbiParameters(
+        [{ type: "address" }, { type: "uint256" }],
+        listingDataBytes as Hex,
+      );
+      const isEth = String(paymentToken).toLowerCase() === "0x0000000000000000000000000000000000000000";
+      return {
+        priceWei: price as bigint,
+        tokenSymbol: isEth ? "ETH" : tokenSymbolProp || "TOKEN",
+        tokenDecimals: tokenDecimalsProp || 18,
+      } as const;
+    } catch {
+      return { priceWei: 0n, tokenSymbol: tokenSymbolProp || "ETH", tokenDecimals: tokenDecimalsProp || 18 } as const;
+    }
+  }, [listingDataBytes, priceWeiProp, tokenDecimalsProp, tokenSymbolProp]);
   let priceLabel = "";
   try {
-    const wei = typeof priceWei === "bigint" ? priceWei : priceWei ? BigInt(priceWei) : 0n;
-    const decimals = typeof tokenDecimals === "number" ? tokenDecimals : 18;
-    const symbol = tokenSymbol || "ETH";
-    const amount = formatUnits(wei, decimals);
-    priceLabel = `${amount} ${symbol}`;
+    const amount = formatUnits(priceWei as bigint, tokenDecimals as number);
+    priceLabel = `${amount} ${tokenSymbol}`;
   } catch {
-    priceLabel = typeof priceWei === "string" ? priceWei : "";
+    priceLabel = "";
   }
   // Preserve the originating location to enable sensible back navigation from listing details
   let fromQuery = "";

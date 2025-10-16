@@ -29,12 +29,18 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     parsed.lat = loc.lat != null ? parseFloat(String(loc.lat)) : undefined;
     parsed.lng = loc.lng != null ? parseFloat(String(loc.lng)) : undefined;
     parsed.radiusMiles = loc.radiusMiles != null ? parseFloat(String(loc.radiusMiles)) : undefined;
-    if (loc.akas) {
+    // Normalize akas to an array: if already an array, pass through; if string, JSON-parse; else []
+    if (Array.isArray((loc as any).akas)) {
+      parsed.akas = (loc as any).akas;
+    } else if (typeof (loc as any).akas === "string") {
       try {
-        parsed.akas = JSON.parse(String(loc.akas));
+        const parsedAkas = JSON.parse((loc as any).akas as string);
+        parsed.akas = Array.isArray(parsedAkas) ? parsedAkas : [];
       } catch {
-        parsed.akas = String(loc.akas);
+        parsed.akas = [];
       }
+    } else {
+      parsed.akas = [];
     }
 
     return NextResponse.json({ location: parsed });

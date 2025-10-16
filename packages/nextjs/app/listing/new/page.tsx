@@ -175,14 +175,13 @@ const NewListingPage = () => {
             [
               { name: "paymentToken", type: "address" },
               { name: "price", type: "uint256" },
-              { name: "ipfsHash", type: "string" },
             ],
-            [paymentToken, priceWei, cid],
+            [paymentToken, priceWei],
           );
 
           await writeMarketplace({
             functionName: "createListing",
-            args: [simpleListings?.address as `0x${string}`, encoded],
+            args: [simpleListings?.address as `0x${string}`, cid, encoded],
           });
           router.push(`/location/${encodeURIComponent(locationId)}`);
           return;
@@ -222,14 +221,13 @@ const NewListingPage = () => {
         [
           { name: "paymentToken", type: "address" },
           { name: "price", type: "uint256" },
-          { name: "ipfsHash", type: "string" },
         ],
-        [paymentToken, priceWei, cid],
+        [paymentToken, priceWei],
       );
 
       await writeMarketplace({
         functionName: "createListing",
-        args: [simpleListings?.address as `0x${string}`, encoded],
+        args: [simpleListings?.address as `0x${string}`, cid, encoded],
       });
       router.push(`/location/${encodeURIComponent(locationId)}`);
     } finally {

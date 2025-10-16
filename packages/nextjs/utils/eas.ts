@@ -50,141 +50,116 @@ const DEFAULTS = {
 } as const;
 
 export const EAS_CONFIGS: Record<number, EasNetworkConfig> = {
-  [hardhat.id]: {
-    chain: hardhat,
-    easAddress: (easConfig as any)?.eas || process.env.NEXT_PUBLIC_EAS_ADDRESS_LOCALHOST || "",
-    graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_LOCALHOST || "",
-    reviewSchemaUid: (easConfig as any)?.reviewSchemaUid || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_LOCALHOST || "",
-    schemaRegistryAddress:
-      (easConfig as any)?.schemaRegistry || process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_LOCALHOST || "",
-  },
-  // For all other networks, prefer values from easConfig.json when the chainId matches that network
+  [hardhat.id]: (() => {
+    const entry = (easConfig as any)[String(hardhat.id)] as any;
+    return {
+      chain: hardhat,
+      easAddress: (entry?.eas as string) || process.env.NEXT_PUBLIC_EAS_ADDRESS_LOCALHOST || "",
+      graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_LOCALHOST || "",
+      reviewSchemaUid: (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_LOCALHOST || "",
+      schemaRegistryAddress:
+        (entry?.schemaRegistry as string) || process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_LOCALHOST || "",
+    } as EasNetworkConfig;
+  })(),
   [sepolia.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === sepolia.id;
+    const entry = (easConfig as any)[String(sepolia.id)] as any;
     return {
       chain: sepolia,
       easAddress:
-        (useFile && (easConfig as any)?.eas) ||
-        process.env.NEXT_PUBLIC_EAS_ADDRESS_SEPOLIA ||
-        DEFAULTS[sepolia.id].easAddress,
+        (entry?.eas as string) || process.env.NEXT_PUBLIC_EAS_ADDRESS_SEPOLIA || DEFAULTS[sepolia.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_SEPOLIA || DEFAULTS[sepolia.id].graphqlUrl,
-      reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_SEPOLIA || "",
+      reviewSchemaUid: (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_SEPOLIA || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_SEPOLIA ||
         DEFAULTS[sepolia.id].schemaRegistryAddress,
     } as EasNetworkConfig;
   })(),
   [mainnet.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === mainnet.id;
+    const entry = (easConfig as any)[String(mainnet.id)] as any;
     return {
       chain: mainnet,
       easAddress:
-        (useFile && (easConfig as any)?.eas) ||
-        process.env.NEXT_PUBLIC_EAS_ADDRESS_MAINNET ||
-        DEFAULTS[mainnet.id].easAddress,
+        (entry?.eas as string) || process.env.NEXT_PUBLIC_EAS_ADDRESS_MAINNET || DEFAULTS[mainnet.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_MAINNET || DEFAULTS[mainnet.id].graphqlUrl,
-      reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_MAINNET || "",
+      reviewSchemaUid: (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_MAINNET || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_MAINNET ||
         DEFAULTS[mainnet.id].schemaRegistryAddress,
     } as EasNetworkConfig;
   })(),
   [optimism.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === optimism.id;
+    const entry = (easConfig as any)[String(optimism.id)] as any;
     return {
       chain: optimism,
       easAddress:
-        (useFile && (easConfig as any)?.eas) ||
-        process.env.NEXT_PUBLIC_EAS_ADDRESS_OPTIMISM ||
-        DEFAULTS[optimism.id].easAddress,
+        (entry?.eas as string) || process.env.NEXT_PUBLIC_EAS_ADDRESS_OPTIMISM || DEFAULTS[optimism.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_OPTIMISM || DEFAULTS[optimism.id].graphqlUrl,
-      reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_OPTIMISM || "",
+      reviewSchemaUid: (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_OPTIMISM || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_OPTIMISM ||
         DEFAULTS[optimism.id].schemaRegistryAddress,
     } as EasNetworkConfig;
   })(),
   [base.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === base.id;
+    const entry = (easConfig as any)[String(base.id)] as any;
     return {
       chain: base,
-      easAddress:
-        (useFile && (easConfig as any)?.eas) ||
-        process.env.NEXT_PUBLIC_EAS_ADDRESS_BASE ||
-        DEFAULTS[base.id].easAddress,
+      easAddress: (entry?.eas as string) || process.env.NEXT_PUBLIC_EAS_ADDRESS_BASE || DEFAULTS[base.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_BASE || DEFAULTS[base.id].graphqlUrl,
-      reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_BASE || "",
+      reviewSchemaUid: (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_BASE || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_BASE ||
         DEFAULTS[base.id].schemaRegistryAddress,
     } as EasNetworkConfig;
   })(),
   [arbitrum.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === arbitrum.id;
+    const entry = (easConfig as any)[String(arbitrum.id)] as any;
     return {
       chain: arbitrum,
       easAddress:
-        (useFile && (easConfig as any)?.eas) ||
-        process.env.NEXT_PUBLIC_EAS_ADDRESS_ARBITRUM ||
-        DEFAULTS[arbitrum.id].easAddress,
+        (entry?.eas as string) || process.env.NEXT_PUBLIC_EAS_ADDRESS_ARBITRUM || DEFAULTS[arbitrum.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_ARBITRUM || DEFAULTS[arbitrum.id].graphqlUrl,
-      reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_ARBITRUM || "",
+      reviewSchemaUid: (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_ARBITRUM || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_ARBITRUM ||
         DEFAULTS[arbitrum.id].schemaRegistryAddress,
     } as EasNetworkConfig;
   })(),
   [optimismSepolia.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === optimismSepolia.id;
+    const entry = (easConfig as any)[String(optimismSepolia.id)] as any;
     return {
       chain: optimismSepolia,
       easAddress:
-        (useFile && (easConfig as any)?.eas) ||
+        (entry?.eas as string) ||
         process.env.NEXT_PUBLIC_EAS_ADDRESS_OPTIMISM_SEPOLIA ||
         DEFAULTS[optimismSepolia.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_OPTIMISM_SEPOLIA || DEFAULTS[optimismSepolia.id].graphqlUrl,
       reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) ||
-        process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_OPTIMISM_SEPOLIA ||
-        "",
+        (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_OPTIMISM_SEPOLIA || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_OPTIMISM_SEPOLIA ||
         DEFAULTS[optimismSepolia.id].schemaRegistryAddress,
     } as EasNetworkConfig;
   })(),
   [baseSepolia.id]: (() => {
-    const fileChainId = Number((easConfig as any)?.chainId);
-    const useFile = fileChainId === baseSepolia.id;
+    const entry = (easConfig as any)[String(baseSepolia.id)] as any;
     return {
       chain: baseSepolia,
       easAddress:
-        (useFile && (easConfig as any)?.eas) ||
+        (entry?.eas as string) ||
         process.env.NEXT_PUBLIC_EAS_ADDRESS_BASE_SEPOLIA ||
         DEFAULTS[baseSepolia.id].easAddress,
       graphqlUrl: process.env.NEXT_PUBLIC_EAS_GRAPHQL_BASE_SEPOLIA || DEFAULTS[baseSepolia.id].graphqlUrl,
       reviewSchemaUid:
-        (useFile && (easConfig as any)?.reviewSchemaUid) ||
-        process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_BASE_SEPOLIA ||
-        "",
+        (entry?.reviewSchemaUid as string) || process.env.NEXT_PUBLIC_EAS_REVIEW_SCHEMA_BASE_SEPOLIA || "",
       schemaRegistryAddress:
-        (useFile && (easConfig as any)?.schemaRegistry) ||
+        (entry?.schemaRegistry as string) ||
         process.env.NEXT_PUBLIC_EAS_SCHEMA_REGISTRY_BASE_SEPOLIA ||
         DEFAULTS[baseSepolia.id].schemaRegistryAddress,
     } as EasNetworkConfig;
