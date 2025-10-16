@@ -233,6 +233,25 @@ const ListingDetailsPageInner = () => {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-2">
+        {isMiniApp ? (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={async () => {
+              try {
+                const url = typeof window !== "undefined" ? window.location.href : "";
+                const text = `Check out this listing: ${title}\n\n${description}\n\n${priceLabel}`;
+                const embeds: string[] = [];
+                if (url) embeds.push(url);
+                if (imageUrl && embeds.length < 2) embeds.push(imageUrl);
+                await composeCast({ text, embeds });
+              } catch (e) {
+                console.error("share compose error", e);
+              }
+            }}
+          >
+            Share
+          </button>
+        ) : null}
         <div className={`badge ${active ? "badge-success" : ""} ml-auto`}>{active ? "Active" : "Sold"}</div>
       </div>
 
@@ -244,6 +263,7 @@ const ListingDetailsPageInner = () => {
         {imageUrl ? (
           <div className="w-full">
             <Image
+              priority={false}
               src={imageUrl}
               alt={title}
               width={1200}
@@ -298,24 +318,6 @@ const ListingDetailsPageInner = () => {
                 listingTypeAddress={payListingTypeAddress}
                 disabled={!active}
               />
-            ) : null}
-            {isMiniApp ? (
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={async () => {
-                  try {
-                    const url = typeof window !== "undefined" ? window.location.href : "";
-                    const text = `Check out this listing: ${title}`;
-                    const embeds: string[] = [];
-                    if (url) embeds.push(url);
-                    await composeCast({ text, embeds });
-                  } catch (e) {
-                    console.error("share compose error", e);
-                  }
-                }}
-              >
-                Share
-              </button>
             ) : null}
           </div>
         </div>

@@ -4,10 +4,12 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { encodeAbiParameters, isAddress, parseEther, parseUnits, zeroAddress } from "viem";
 import { useReadContract } from "wagmi";
+import { useMiniapp } from "~~/components/MiniappProvider";
 import { IPFSUploader } from "~~/components/marketplace/IPFSUploader";
 import { TagsInput } from "~~/components/marketplace/TagsInput";
 import { useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
+import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 import { uploadJSON } from "~~/services/ipfs/upload";
 import TOKENS_JSON from "~~/tokens.json";
 
@@ -22,11 +24,23 @@ const ERC20_DECIMALS_ABI = [
   },
 ] as const;
 
+// Minimal ERC20 ABI to read symbol (for custom tokens)
+const ERC20_SYMBOL_ABI = [
+  {
+    type: "function",
+    name: "symbol",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
+] as const;
+
 const KNOWN_TOKENS = TOKENS_JSON as Record<string, `0x${string}`>;
 
 const NewListingPageInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { composeCast, isMiniApp } = useMiniapp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -43,6 +57,7 @@ const NewListingPageInner = () => {
 
   const { writeContractAsync: writeMarketplace } = useScaffoldWriteContract({ contractName: "Marketplace" });
   const { data: simpleListings } = useDeployedContractInfo({ contractName: "SimpleListings" });
+  const { data: marketplaceInfo } = useDeployedContractInfo({ contractName: "Marketplace" });
 
   const isCustomToken = currency === "TOKEN";
   const isKnownToken = currency !== "ETH" && currency !== "TOKEN" && Boolean(KNOWN_TOKENS[currency]);
@@ -59,6 +74,17 @@ const NewListingPageInner = () => {
     functionName: "decimals",
     query: {
       enabled: (isCustomToken && isTokenAddressValid) || isKnownToken,
+      retry: false,
+    },
+  });
+
+  // Attempt to fetch symbol for custom tokens for a nicer price label
+  const { data: tokenSymbolData } = useReadContract({
+    address: isCustomToken && isTokenAddressValid ? (tokenAddress as `0x${string}`) : undefined,
+    abi: ERC20_SYMBOL_ABI,
+    functionName: "symbol",
+    query: {
+      enabled: isCustomToken && isTokenAddressValid,
       retry: false,
     },
   });
@@ -120,6 +146,24 @@ const NewListingPageInner = () => {
     loadingDecimals,
   ]);
 
+  // Derive a human-friendly price label similar to listing page using in-memory values
+  const priceLabel = useMemo(() => {
+    const trimmed = (price || "").trim();
+    if (!trimmed) return "";
+    try {
+      if (isCustomToken) {
+        const sym = (tokenSymbolData as string | undefined) || "TOKEN";
+        return `${trimmed} ${sym}`;
+      }
+      if (isKnownToken) {
+        return `${trimmed} ${currency}`;
+      }
+      return `${trimmed} ETH`;
+    } catch {
+      return trimmed;
+    }
+  }, [price, isCustomToken, isKnownToken, tokenSymbolData, currency]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -176,12 +220,51 @@ const NewListingPageInner = () => {
             ],
             [paymentToken, priceWei],
           );
+          const shareImageUrlLocal = (resolveIpfsUrl(localImageCid) as string | null) || localImageCid || undefined;
 
-          await writeMarketplace({
-            functionName: "createListing",
-            args: [simpleListings?.address as `0x${string}`, cid, encoded],
-          });
-          router.push(`/location/${encodeURIComponent(locationId)}`);
+          // Write and wait for receipt so we can derive the new listing id from logs
+          await writeMarketplace(
+            {
+              functionName: "createListing",
+              args: [simpleListings?.address as `0x${string}`, cid, encoded],
+            },
+            {
+              blockConfirmations: 1,
+              onBlockConfirmation: receipt => {
+                try {
+                  // Parse ListingCreated log from Marketplace
+                  const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
+                  const createdLog = receipt.logs.find(l => (l as any).address?.toLowerCase() === mpAddress);
+                  let newId: string | undefined;
+                  if (createdLog && (createdLog as any).topics && (createdLog as any).topics.length >= 2) {
+                    try {
+                      const hex = (createdLog as any).topics[1] as string;
+                      if (hex && hex.startsWith("0x")) newId = String(BigInt(hex));
+                    } catch {}
+                  }
+
+                  // Navigate to location first for UX consistency
+                  router.push(`/location/${encodeURIComponent(locationId)}`);
+
+                  // Prompt to share using in-memory details even before indexing
+                  if (isMiniApp && newId) {
+                    try {
+                      const base =
+                        process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
+                      const url = `${base}/listing/${encodeURIComponent(newId)}`;
+                      const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
+                      const embeds: string[] = [];
+                      if (url) embeds.push(url);
+                      if (shareImageUrlLocal && embeds.length < 2) embeds.push(shareImageUrlLocal);
+                      setTimeout(() => {
+                        composeCast({ text, embeds }).catch(() => {});
+                      }, 300);
+                    } catch {}
+                  }
+                } catch {}
+              },
+            },
+          );
           return;
         } catch {}
       }
@@ -223,11 +306,47 @@ const NewListingPageInner = () => {
         [paymentToken, priceWei],
       );
 
-      await writeMarketplace({
-        functionName: "createListing",
-        args: [simpleListings?.address as `0x${string}`, cid, encoded],
-      });
-      router.push(`/location/${encodeURIComponent(locationId)}`);
+      await writeMarketplace(
+        {
+          functionName: "createListing",
+          args: [simpleListings?.address as `0x${string}`, cid, encoded],
+        },
+        {
+          blockConfirmations: 1,
+          onBlockConfirmation: receipt => {
+            try {
+              const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
+              const createdLog = receipt.logs.find(l => (l as any).address?.toLowerCase() === mpAddress);
+              let newId: string | undefined;
+              if (createdLog && (createdLog as any).topics && (createdLog as any).topics.length >= 2) {
+                try {
+                  const hex = (createdLog as any).topics[1] as string;
+                  if (hex && hex.startsWith("0x")) newId = String(BigInt(hex));
+                } catch {}
+              }
+
+              router.push(`/location/${encodeURIComponent(locationId)}`);
+
+              if (isMiniApp && newId) {
+                try {
+                  const base =
+                    process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
+                  const url = `${base}/listing/${encodeURIComponent(newId)}`;
+                  const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
+                  const embeds: string[] = [];
+                  if (url) embeds.push(url);
+                  const shareImageUrl2 = imageCid ? (resolveIpfsUrl(imageCid) as string | null) || imageCid : undefined;
+                  if (shareImageUrl2 && embeds.length < 2) embeds.push(shareImageUrl2);
+                  setTimeout(() => {
+                    composeCast({ text, embeds }).catch(() => {});
+                  }, 300);
+                } catch {}
+              }
+            } catch {}
+          },
+        },
+      );
+      return;
     } finally {
       setSubmitting(false);
     }

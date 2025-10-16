@@ -81,6 +81,7 @@ export const ListingCard = ({
     <Link href={`/listing/${id}${fromQuery}`} className="card card-compact bg-base-100 shadow">
       {resolved ? (
         <Image
+          priority={false}
           src={resolved}
           alt={title}
           width={800}

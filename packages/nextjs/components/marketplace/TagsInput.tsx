@@ -69,15 +69,12 @@ export const TagsInput = ({ value, onChange, placeholder, className }: TagsInput
           </button>
         </span>
       ))}
-      {/* Draft appears like a badge while typing */}
-      {draft ? <span className="badge badge-outline opacity-80 shrink-0">{draft}</span> : null}
       <input
         ref={inputRef}
-        className="flex-1 w-px min-w-[1px] outline-none bg-transparent shrink-0"
+        className="flex-1 min-w-[6ch] outline-none bg-transparent"
         placeholder={value.length || draft ? undefined : placeholder}
         value={draft}
         style={{ caretColor: "var(--bc)" }}
-        // Hide the input's text while draft is shown to avoid duplicate text, but keep caret visible
         onChange={e => {
           const text = e.target.value;
           if (text.includes(",")) {
@@ -97,17 +94,6 @@ export const TagsInput = ({ value, onChange, placeholder, className }: TagsInput
         }}
         onBlur={() => commitDraftTokens(draft)}
       />
-      {/* Visually hide the input text by overlaying styles via a utility class when draft exists */}
-      <style jsx>{`
-        input[value]:not([value=""]) {
-          ${"/* Only when there is draft text */"}
-          color: transparent;
-        }
-        input::placeholder {
-          color: inherit;
-          opacity: 0.5;
-        }
-      `}</style>
     </div>
   );
 };
