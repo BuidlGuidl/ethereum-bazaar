@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { encodeAbiParameters, isAddress, parseEther, parseUnits, zeroAddress } from "viem";
 import { useReadContract } from "wagmi";
@@ -24,7 +24,7 @@ const ERC20_DECIMALS_ABI = [
 
 const KNOWN_TOKENS = TOKENS_JSON as Record<string, `0x${string}`>;
 
-const NewListingPage = () => {
+const NewListingPageInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
@@ -37,8 +37,6 @@ const NewListingPage = () => {
   const [decimalsOverride, setDecimalsOverride] = useState<number | null>(null);
   const [contacts, setContacts] = useState<Array<{ type: string; key?: string; value: string }>>([]);
   const [locationId, setLocationId] = useState("");
-  // const [locationName, setLocationName] = useState<string>("");
-  // Location is derived from user's previously selected location (localStorage)
   const [submitting, setSubmitting] = useState(false);
   const [imageCid, setImageCid] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -434,4 +432,10 @@ const NewListingPage = () => {
   );
 };
 
-export default NewListingPage;
+export default function NewListingPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewListingPageInner />
+    </Suspense>
+  );
+}

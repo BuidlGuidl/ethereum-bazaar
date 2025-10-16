@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { Suspense, useRef } from "react";
 import { Cormorant_Garamond } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
@@ -88,7 +88,9 @@ export const Header = () => {
   return (
     <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 shrink-0 justify-between z-20 px-0 sm:px-2">
       <div className="navbar-start w-auto lg:w-1/2 flex items-center gap-1">
-        <BackButton />
+        <Suspense fallback={null}>
+          <BackButton />
+        </Suspense>
         <Link href="/?home=1" passHref className="hidden lg:flex items-center gap-1 ml-4 mr-3 shrink-0">
           <div className="flex items-center">
             <Image

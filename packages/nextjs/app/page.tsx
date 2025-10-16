@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Cormorant_Garamond } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { NextPage } from "next";
 import MapRadius from "~~/components/marketplace/MapRadiusGL";
 
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"] });
 
-const Home: NextPage = () => {
+const HomeInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -234,4 +233,10 @@ const Home: NextPage = () => {
   );
 };
 
-export default Home;
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
+  );
+}

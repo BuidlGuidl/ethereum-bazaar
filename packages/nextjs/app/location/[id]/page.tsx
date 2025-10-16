@@ -18,14 +18,6 @@ const LocationPage = () => {
   // Future: we could store geo/radius for map previews
   const hasRefreshedRef = useRef(false);
 
-  const decodedId = useMemo(() => {
-    try {
-      return decodeURIComponent(params?.id as string);
-    } catch {
-      return params?.id as string;
-    }
-  }, [params?.id]);
-
   useEffect(() => {
     const run = async () => {
       setLoading(true);
@@ -198,7 +190,7 @@ const LocationPage = () => {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl mb-0 font-semibold">{location?.name || cachedName || decodedId}</h1>
+        <h1 className="text-2xl mb-0 font-semibold">{location?.name || cachedName || ""}</h1>
         <Link href={`/listing/new?loc=${encodeURIComponent(params?.id as string)}`} className="btn btn-primary">
           Create Listing
         </Link>

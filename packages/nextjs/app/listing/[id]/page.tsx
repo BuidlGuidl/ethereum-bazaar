@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useParams } from "next/navigation";
@@ -13,7 +13,7 @@ import { Address } from "~~/components/scaffold-eth/Address/Address";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
 import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 
-const ListingDetailsPage = () => {
+const ListingDetailsPageInner = () => {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -375,4 +375,10 @@ const ListingDetailsPage = () => {
   );
 };
 
-export default ListingDetailsPage;
+export default function ListingDetailsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ListingDetailsPageInner />
+    </Suspense>
+  );
+}
