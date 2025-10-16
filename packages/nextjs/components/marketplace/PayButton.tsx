@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { keccak256, stringToHex, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
-import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 
 export interface PayButtonProps {
@@ -12,9 +11,10 @@ export interface PayButtonProps {
   priceWei?: string; // pass as string to avoid bigint serialization issues
   paymentToken?: string; // zero address for ETH; otherwise ERC20
   disabled?: boolean;
+  listingTypeAddress?: string; // spender/listing type contract address passed from parent
 }
 
-export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayButtonProps) => {
+export const PayButton = ({ listingId, priceWei, paymentToken, disabled, listingTypeAddress }: PayButtonProps) => {
   const { writeContractAsync, isMining } = useScaffoldWriteContract({ contractName: "Marketplace" });
   const { address } = useAccount();
   const router = useRouter();
@@ -34,17 +34,11 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayBu
     return "Buy";
   }, [isEth, priceWei]);
 
-  // Read listing pointer to get listingType (spender) address
   const idBig = useMemo(() => BigInt(typeof listingId === "number" ? listingId : listingId.toString()), [listingId]);
-  const { data: listingRes } = useScaffoldReadContract({
-    contractName: "Marketplace",
-    functionName: "getListing",
-    args: [idBig],
-    // don't need to watch aggressively here
-    watch: false,
-  } as any);
-  const pointer = useMemo(() => (listingRes ? (listingRes as any)[0] : undefined), [listingRes]);
-  const listingTypeAddress = (pointer?.listingType as string | undefined)?.toLowerCase?.();
+  const listingTypeSpenderLower = useMemo(
+    () => (listingTypeAddress ? listingTypeAddress.toLowerCase() : undefined),
+    [listingTypeAddress],
+  );
 
   // Minimal ERC20 ABI
   const erc20Abi = useMemo(
@@ -81,7 +75,7 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayBu
 
   const ownerAddress = (address || "0x0000000000000000000000000000000000000000") as `0x${string}`;
   const tokenAddress = (paymentToken || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-  const spenderAddress = (listingTypeAddress || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+  const spenderAddress = (listingTypeSpenderLower || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
   const { data: allowanceData } = useReadContract({
     address: tokenAddress,
@@ -89,7 +83,7 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayBu
     functionName: "allowance",
     args: [ownerAddress, spenderAddress],
     query: {
-      enabled: isErc20 && !!address && !!listingTypeAddress && !!paymentToken,
+      enabled: isErc20 && !!address && !!listingTypeSpenderLower && !!paymentToken,
     },
   } as any);
 
@@ -108,6 +102,10 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayBu
 
   const onBuy = useCallback(async () => {
     try {
+      // Prevent approving zero address if listing type (spender) isn't available yet
+      if (isErc20 && !listingTypeSpenderLower) {
+        return;
+      }
       if (isErc20) {
         const needed = priceWei ? BigInt(priceWei) : 0n;
         const current = (allowanceData as bigint | undefined) ?? 0n;
@@ -129,11 +127,26 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled }: PayBu
     } catch {
       // swallow; user may have rejected or tx failed
     }
-  }, [isErc20, allowanceData, priceWei, doBuy, writeTokenAsync, tokenAddress, erc20Abi, spenderAddress, publicClient]);
+  }, [
+    isErc20,
+    listingTypeSpenderLower,
+    allowanceData,
+    priceWei,
+    doBuy,
+    writeTokenAsync,
+    tokenAddress,
+    erc20Abi,
+    spenderAddress,
+    publicClient,
+  ]);
 
   return (
     <>
-      <button className="btn btn-primary" onClick={onBuy} disabled={disabled || isMining}>
+      <button
+        className="btn btn-primary"
+        onClick={onBuy}
+        disabled={disabled || isMining || (isErc20 && !listingTypeSpenderLower)}
+      >
         {label}
       </button>
       {/* Approving is now automatic; no modal shown. */}

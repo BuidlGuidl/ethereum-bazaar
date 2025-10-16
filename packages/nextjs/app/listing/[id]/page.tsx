@@ -207,6 +207,15 @@ const ListingDetailsPage = () => {
     [indexed?.paymentToken, data?.decoded?.paymentToken],
   );
 
+  const payListingTypeAddress = useMemo(() => {
+    try {
+      const addr = (indexed?.listingType as string | undefined) ?? (pointer?.listingType as string | undefined);
+      return addr?.toLowerCase();
+    } catch {
+      return undefined;
+    }
+  }, [indexed?.listingType, pointer]);
+
   // (back navigation handled globally in Header BackButton)
 
   // Close lightbox on Escape
@@ -284,6 +293,7 @@ const ListingDetailsPage = () => {
                 // For ETH payments, pass decoded values when available (non-ETH handled via approval in button)
                 priceWei={payPriceWei}
                 paymentToken={payToken}
+                listingTypeAddress={payListingTypeAddress}
                 disabled={!active}
               />
             ) : null}
