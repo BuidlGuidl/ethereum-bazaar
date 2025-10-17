@@ -1,30 +1,36 @@
 import { createConfig } from "ponder";
 // Use deployed ABIs to avoid drift with contracts
 import { easGetAttestationAbi } from "./abis/EASAbi";
-import MarketplaceDeployment from "../hardhat/deployments/base/Marketplace.json" assert { type: "json" };
+import MarketplaceDeploymentBase from "../hardhat/deployments/base/Marketplace.json" assert { type: "json" };
+import MarketplaceDeploymentHardhat from "../hardhat/deployments/localhost/Marketplace.json" assert { type: "json" };
 import EASConfig from "./src/easConfig.json" assert { type: "json" };
 import { Abi } from "viem";
 
+const CHAIN_ID = Number(process.env.PONDER_CHAIN_ID ?? 8453);
+const CHAIN_NAME = CHAIN_ID === 31337 ? "hardhat" : "base";
+const EASConfigForChain = EASConfig[String(CHAIN_ID) as keyof typeof EASConfig];
+const MarketplaceDeploymentForChain = CHAIN_ID === 31337 ? MarketplaceDeploymentHardhat : MarketplaceDeploymentBase;
+
 export default createConfig({
   chains: {
-    base: {
-      id: 8453,
-      rpc: process.env.PONDER_RPC_URL_8453 ?? "https://base.llamarpc.com",
+    [CHAIN_NAME]: {
+      id: Number(process.env.PONDER_CHAIN_ID ?? 8453),
+      rpc: process.env[`PONDER_RPC_URL_${process.env.PONDER_CHAIN_ID}`] ?? "https://base.llamarpc.com",
     },
   },
   contracts: {
     Marketplace: {
-      chain: "base",
-      abi: MarketplaceDeployment.abi as Abi,
-      address: MarketplaceDeployment.address as `0x${string}`,
-      startBlock: MarketplaceDeployment.receipt.blockNumber,
+      chain: CHAIN_NAME,
+      abi: MarketplaceDeploymentForChain.abi as Abi,
+      address: MarketplaceDeploymentForChain.address as `0x${string}`,
+      startBlock: MarketplaceDeploymentForChain.receipt.blockNumber,
     },
     // Index EAS core contract using the deployed ABI to match emitted events
     EAS: {
-      chain: "base",
+      chain: CHAIN_NAME,
       abi: easGetAttestationAbi,
-      address: EASConfig["8453"].eas as `0x${string}`,
-      startBlock: MarketplaceDeployment.receipt.blockNumber,
+      address: EASConfigForChain.eas as `0x${string}`,
+      startBlock: MarketplaceDeploymentForChain.receipt.blockNumber,
     },
   },
 });

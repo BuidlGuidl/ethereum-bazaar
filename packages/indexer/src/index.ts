@@ -6,12 +6,16 @@ import easConfig from "./easConfig.json" assert { type: "json" };
 import { easGetAttestationAbi } from "../abis/EASAbi";
 
 // Reuse one public client for reads
+const rpcUrl =
+  process.env[`PONDER_RPC_URL_${process.env.PONDER_CHAIN_ID}`] ??
+  "https://base.llamarpc.com";
 const publicClient = createPublicClient({
-  transport: http(process.env.PONDER_RPC_URL_8453 ?? "https://base.llamarpc.com"),
+  transport: http(rpcUrl),
 });
 
 // --- IPFS helpers (resilient multi-gateway JSON fetch) ---
-const PREFERRED_GATEWAY = process.env.PONDER_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
+const PREFERRED_GATEWAY =
+  process.env.PONDER_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
 
 function toIpfsPath(cidOrUrl: string | null | undefined): string {
   if (!cidOrUrl) return "";
