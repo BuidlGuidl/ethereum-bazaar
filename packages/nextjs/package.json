@@ -37,6 +37,7 @@
     "qrcode.react": "~4.0.1",
     "react": "~19.0.0",
     "react-dom": "~19.0.0",
+    "react-easy-crop": "^5.0.6",
     "react-hot-toast": "~2.4.0",
     "react-map-gl": "^7.1.6",
     "usehooks-ts": "~3.1.0",

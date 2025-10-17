@@ -242,7 +242,6 @@ const ListingDetailsPageInner = () => {
                 const text = `Check out this listing: ${title}\n\n${description}\n\n${priceLabel}`;
                 const embeds: string[] = [];
                 if (url) embeds.push(url);
-                if (imageUrl && embeds.length < 2) embeds.push(imageUrl);
                 await composeCast({ text, embeds });
               } catch (e) {
                 console.error("share compose error", e);

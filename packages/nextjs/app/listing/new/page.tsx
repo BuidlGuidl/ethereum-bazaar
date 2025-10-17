@@ -9,7 +9,7 @@ import { IPFSUploader } from "~~/components/marketplace/IPFSUploader";
 import { TagsInput } from "~~/components/marketplace/TagsInput";
 import { useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
-import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
+// import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 import { uploadJSON } from "~~/services/ipfs/upload";
 import TOKENS_JSON from "~~/tokens.json";
 
@@ -220,7 +220,7 @@ const NewListingPageInner = () => {
             ],
             [paymentToken, priceWei],
           );
-          const shareImageUrlLocal = (resolveIpfsUrl(localImageCid) as string | null) || localImageCid || undefined;
+          // no-op: we no longer add extra image embeds; rely on page embed image
 
           // Write and wait for receipt so we can derive the new listing id from logs
           await writeMarketplace(
@@ -255,7 +255,7 @@ const NewListingPageInner = () => {
                       const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
                       const embeds: string[] = [];
                       if (url) embeds.push(url);
-                      if (shareImageUrlLocal && embeds.length < 2) embeds.push(shareImageUrlLocal);
+
                       setTimeout(() => {
                         composeCast({ text, embeds }).catch(() => {});
                       }, 300);
@@ -335,8 +335,7 @@ const NewListingPageInner = () => {
                   const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
                   const embeds: string[] = [];
                   if (url) embeds.push(url);
-                  const shareImageUrl2 = imageCid ? (resolveIpfsUrl(imageCid) as string | null) || imageCid : undefined;
-                  if (shareImageUrl2 && embeds.length < 2) embeds.push(shareImageUrl2);
+
                   setTimeout(() => {
                     composeCast({ text, embeds }).catch(() => {});
                   }, 300);
