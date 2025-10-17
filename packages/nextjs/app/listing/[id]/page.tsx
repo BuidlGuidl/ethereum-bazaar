@@ -334,7 +334,7 @@ const ListingDetailsPageInner = () => {
                       .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
                       .map(([k, v]) => (
                         <li key={k} className="flex items-center">
-                          <span className="capitalize">
+                          <span>
                             {k}: {v}
                           </span>
                         </li>

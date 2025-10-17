@@ -1,3 +1,4 @@
+import { resolveIpfsUrl } from "../../../services/ipfs/fetch";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -43,57 +44,38 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       const listing = json?.data?.listings ?? null;
       if (listing) {
         title = listing.title || title;
-        // Resolve IPFS-ish images to gateway URL if needed
-        try {
-          const val: string | undefined = (() => {
-            const raw = String(listing.image || "").trim();
-            if (!raw) return undefined;
-            if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-            const path = raw.startsWith("ipfs://") ? raw.slice("ipfs://".length) : raw;
-            const gw = process.env.NEXT_PUBLIC_PINATA_GATEWAY || "https://ipfs.io/ipfs/";
-            const base = gw.endsWith("/") ? gw : `${gw}/`;
-            return `${base}${path}`;
-          })();
-          imageUrl = val;
-        } catch {}
+        const resolved = resolveIpfsUrl(listing.image) || listing.image;
+        if (resolved && typeof resolved === "string") imageUrl = resolved;
       }
     }
   } catch {}
 
   const fallbackImage = `${baseUrl}/thumbnail.jpg`;
 
-  const titleTruncated = (process.env.NEXT_PUBLIC_APP_NAME || "View Listing").slice(0, 32);
   const embedMiniapp = {
     version: "1",
     imageUrl: imageUrl || process.env.NEXT_PUBLIC_IMAGE_URL || fallbackImage,
     button: {
-      title: titleTruncated,
+      title: "View Listing",
       action: {
+        name: title,
         type: "launch_miniapp",
         url: `${baseUrl}/listing/${id}`,
-      },
-    },
-  };
-  const embedFrame = {
-    ...embedMiniapp,
-    button: {
-      ...embedMiniapp.button,
-      action: {
-        ...embedMiniapp.button.action,
-        type: "launch_frame",
+        splashImageUrl: `${baseUrl}/EBicon.png`,
+        splashBackgroundColor: "#f8f5f0",
       },
     },
   };
 
   return {
-    title: `${title} | Ethereum Bazaar`,
+    title: `${title} | View Listing`,
     openGraph: {
-      title: `${title} | Ethereum Bazaar`,
+      title: `${title} | View Listing`,
       images: [imageUrl || fallbackImage],
     },
     other: {
       "fc:miniapp": JSON.stringify(embedMiniapp),
-      "fc:frame": JSON.stringify(embedFrame),
+      "fc:frame": JSON.stringify(embedMiniapp),
     },
   };
 }
