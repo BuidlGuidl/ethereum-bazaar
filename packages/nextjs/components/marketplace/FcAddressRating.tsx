@@ -21,10 +21,7 @@ export const FcAddressRating: React.FC<Props> = ({ address, size = 16, className
       if (!reviewee) return;
       setLoading(true);
       try {
-        const base =
-          process.env.NEXT_PUBLIC_PONDER_URL ||
-          process.env.NEXT_PUBLIC_PONDER_API_URL ||
-          "http://localhost:42069/graphql";
+        const base = process.env.NEXT_PUBLIC_PONDER_URL || "http://localhost:42069/graphql";
         const query = `
           query ReviewsByReviewee($reviewee: String!) {
             reviewss(where: { reviewee: $reviewee }, limit: 500, orderBy: "time", orderDirection: "desc") {

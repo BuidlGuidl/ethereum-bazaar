@@ -30,17 +30,17 @@ export const IPFSUploader = ({
   const DEST_W = 1200;
   const DEST_H = 800;
 
-  const minCoverZoom = useMemo(() => {
-    if (!imgDims) return 1;
-    const cover = Math.max(DEST_W / imgDims.w, DEST_H / imgDims.h);
-    return cover;
-  }, [imgDims]);
+  // Absolute zoom scales relative to the image's natural size
+  // containZoom: entire image fits within the crop (furthest edges touch)
+  // coverZoom: crop fully filled by the image (closest edges touch)
+  const [coverZoom, setCoverZoom] = useState<number>(1);
 
   const zoomBounds = useMemo(() => {
-    const min = minCoverZoom * 0.5; // allow zooming out to show black bars
-    const max = minCoverZoom * 4;
+    const min = 0.75; // normalized contain
+    // Give headroom above cover to overcome rounding/clamping and allow precise edge contact
+    const max = Math.max(coverZoom * 3, min + 0.01);
     return { min, max };
-  }, [minCoverZoom]);
+  }, [coverZoom]);
 
   // container width not needed with react-easy-crop
 
@@ -152,9 +152,7 @@ export const IPFSUploader = ({
               const w = img.naturalWidth || img.width;
               const h = img.naturalHeight || img.height;
               setImgDims({ w, h });
-              // default zoom to cover
-              const cover = Math.max(DEST_W / w, DEST_H / h);
-              setZoom(cover);
+              // Default zoom will be set on media load using the actual container size
               setCrop({ x: 0, y: 0 });
               setCropOpen(true);
             } catch {
@@ -202,14 +200,36 @@ export const IPFSUploader = ({
                   aspect={3 / 2}
                   crop={crop}
                   zoom={zoom}
-                  minZoom={minCoverZoom}
-                  maxZoom={minCoverZoom * 5}
+                  minZoom={zoomBounds.min}
+                  maxZoom={zoomBounds.max}
                   zoomWithScroll
                   restrictPosition={false}
                   showGrid={false}
                   onCropChange={setCrop}
                   onZoomChange={setZoom}
                   onCropComplete={(_: Area, areaPixels: Area) => setCroppedAreaPixels(areaPixels)}
+                  onMediaLoaded={({ naturalWidth, naturalHeight }) => {
+                    const rect = cropRef.current?.getBoundingClientRect();
+                    if (rect && naturalWidth && naturalHeight) {
+                      // Compute absolute scales relative to natural size. Account for 3:2 crop area.
+                      const containerW = rect.width;
+                      const containerH = rect.height;
+                      const containAbs = Math.min(containerW / naturalWidth, containerH / naturalHeight);
+                      const coverAbs = Math.max(containerW / naturalWidth, containerH / naturalHeight);
+                      const coverFactor = coverAbs / containAbs; // normalized units
+                      setCoverZoom(coverFactor);
+                      // Default view = cover and centered
+                      setZoom(coverFactor);
+                      // Center programmatically so the nearest edges are symmetric
+                      // crop in react-easy-crop is percentage based; {x:0,y:0} is centered
+                      // Ensure centered positioning at initial load
+                      setCrop({ x: 0, y: 0 });
+                    } else {
+                      setCoverZoom(1);
+                      setZoom(1);
+                      setCrop({ x: 0, y: 0 });
+                    }
+                  }}
                   style={{ containerStyle: { width: "100%", height: "100%" } }}
                 />
               </div>
@@ -232,6 +252,7 @@ export const IPFSUploader = ({
                     setImgDims(null);
                     setCrop({ x: 0, y: 0 });
                     setZoom(1);
+                    setCoverZoom(1);
                     onSelected?.(null);
                     setCropOpen(false);
                   }}

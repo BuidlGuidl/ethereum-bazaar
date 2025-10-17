@@ -47,7 +47,7 @@ const ReviewRecentSalesPage = () => {
       if (!me) return;
       setLoading(true);
       try {
-        const base = process.env.NEXT_PUBLIC_PONDER_API_URL || "http://127.0.0.1:42069/graphql";
+        const base = process.env.NEXT_PUBLIC_PONDER_URL || "http://127.0.0.1:42069/graphql";
 
         const listingsQuery = (role: "buyer" | "seller") => `{
   listingss(where: {
