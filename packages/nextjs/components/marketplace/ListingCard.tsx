@@ -9,6 +9,7 @@ export interface ListingCardProps {
   id: string | number;
   title: string;
   imageUrl?: string;
+  tags?: string[];
   priceWei?: string | bigint | null;
   tokenSymbol?: string | null;
   tokenDecimals?: number | null;
@@ -18,6 +19,7 @@ export const ListingCard = ({
   id,
   title,
   imageUrl,
+  tags = [],
   priceWei: priceWeiProp,
   tokenSymbol: tokenSymbolProp,
   tokenDecimals: tokenDecimalsProp,
@@ -78,7 +80,10 @@ export const ListingCard = ({
   } catch {}
 
   return (
-    <Link href={`/listing/${id}${fromQuery}`} className="card card-compact bg-base-100 shadow">
+    <Link
+      href={`/listing/${id}${fromQuery}`}
+      className="card card-compact bg-base-100 shadow border border-base-300 hover:border-primary/50 transition-colors h-full rounded-xl overflow-hidden"
+    >
       {resolved ? (
         <Image
           priority={false}
@@ -86,7 +91,7 @@ export const ListingCard = ({
           alt={title}
           width={800}
           height={320}
-          className="w-full h-40 object-cover"
+          className="w-full aspect-[3/2] object-cover rounded-t-xl"
           onError={e => {
             const img = e.currentTarget as HTMLImageElement;
             img.src = "/thumbnail.jpg";
@@ -95,6 +100,15 @@ export const ListingCard = ({
       ) : null}
       <div className="card-body">
         <div className="card-title text-base">{title}</div>
+        {tags && tags.length ? (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {tags.slice(0, 3).map(t => (
+              <span key={t} className="badge badge-secondary badge-sm max-w-[16ch]">
+                <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-left">{t}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="opacity-80 text-sm">{priceLabel}</div>
       </div>
     </Link>

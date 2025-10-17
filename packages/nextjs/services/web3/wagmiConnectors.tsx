@@ -1,3 +1,4 @@
+import { farcasterMiniApp as miniAppConnector } from "@farcaster/miniapp-wagmi-connector";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
   coinbaseWallet,
@@ -13,7 +14,16 @@ import scaffoldConfig from "~~/scaffold.config";
 
 const { onlyLocalBurnerWallet, targetNetworks } = scaffoldConfig;
 
+const farcasterWallet = () => ({
+  id: "farcaster",
+  name: "Farcaster Wallet",
+  iconUrl: "https://farcaster.xyz/favicon.ico",
+  iconBackground: "#6f3bf5",
+  createConnector: () => miniAppConnector(),
+});
+
 const wallets = [
+  farcasterWallet,
   metaMaskWallet,
   walletConnectWallet,
   ledgerWallet,
@@ -29,12 +39,6 @@ const wallets = [
  * wagmi connectors for the wagmi context
  */
 export const wagmiConnectors = () => {
-  // Only create connectors on client-side to avoid SSR issues
-  // TODO: update when https://github.com/rainbow-me/rainbowkit/issues/2476 is resolved
-  if (typeof window === "undefined") {
-    return [];
-  }
-
   return connectorsForWallets(
     [
       {

@@ -91,7 +91,7 @@ export const BackButton = () => {
   }, [router, pathname, searchParams]);
 
   return (
-    <button type="button" className="btn btn-ghost btn-md" aria-label="Go back" onClick={onBack}>
+    <button type="button" className="btn btn-ghost btn-md pl-1 ml-2 lg:ml-0" aria-label="Go back" onClick={onBack}>
       <span className="text-2xl">←</span>
     </button>
   );

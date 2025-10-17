@@ -86,51 +86,53 @@ export const Header = () => {
   });
 
   return (
-    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 shrink-0 justify-between z-20 px-0 sm:px-2">
-      <div className="navbar-start w-auto lg:w-1/2 flex items-center gap-1">
-        <Suspense fallback={null}>
-          <BackButton />
-        </Suspense>
-        <Link href="/?home=1" passHref className="hidden lg:flex items-center gap-1 ml-4 mr-3 shrink-0">
-          <div className="flex items-center">
-            <Image
-              alt="Ethereum Bazaar logo"
-              width={64}
-              height={64}
-              className="cursor-pointer"
-              src="/ethereum-bazaar-logo.svg"
-            />
-          </div>
-          <div className="flex flex-col">
-            <span
-              className={`${cormorant.className} font-semibold leading-tight text-[1.35rem] tracking-[0.01em] text-primary`}
-            >
-              Ethereum Bazaar
-            </span>
-            <span className="text-xs text-neutral/80">A peer to peer marketplace</span>
-          </div>
-        </Link>
-        <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
-          <HeaderMenuLinks />
-        </ul>
-      </div>
-      <div className="navbar-end grow mr-4">
-        <RainbowKitCustomConnectButton />
-        {isLocalNetwork && <FaucetButton />}
-        {/* Removed Add Mini App button; auto-prompt handled in provider */}
-        <details className="dropdown dropdown-end" ref={burgerMenuRef}>
-          <summary className="btn btn-ghost lg:hidden hover:bg-transparent">
-            <Bars3Icon className="h-1/2" />
-          </summary>
-          <ul
-            className="menu menu-compact dropdown-content mt-3 p-2 shadow-sm bg-base-100 rounded-box w-52"
-            onClick={() => {
-              burgerMenuRef?.current?.removeAttribute("open");
-            }}
-          >
+    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 shrink-0 justify-between z-20 px-0">
+      <div className="mx-auto max-w-6xl w-full flex items-center justify-between">
+        <div className="navbar-start w-auto lg:w-1/2 flex items-center gap-1 pl-0">
+          <Suspense fallback={null}>
+            <BackButton />
+          </Suspense>
+          <Link href="/?home=1" passHref className="hidden lg:flex items-center gap-1 shrink-0">
+            <div className="flex items-center">
+              <Image
+                alt="Ethereum Bazaar logo"
+                width={64}
+                height={64}
+                className="cursor-pointer"
+                src="/ethereum-bazaar-logo.svg"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span
+                className={`${cormorant.className} font-semibold leading-tight text-[1.35rem] tracking-[0.01em] text-primary`}
+              >
+                Ethereum Bazaar
+              </span>
+              <span className="text-xs text-neutral/80">A peer to peer marketplace</span>
+            </div>
+          </Link>
+          <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
             <HeaderMenuLinks />
           </ul>
-        </details>
+        </div>
+        <div className="navbar-end grow">
+          <RainbowKitCustomConnectButton />
+          {isLocalNetwork && <FaucetButton />}
+          {/* Removed Add Mini App button; auto-prompt handled in provider */}
+          <details className="dropdown dropdown-end" ref={burgerMenuRef}>
+            <summary className="btn btn-ghost lg:hidden hover:bg-transparent">
+              <Bars3Icon className="h-1/2" />
+            </summary>
+            <ul
+              className="menu menu-compact dropdown-content mt-3 p-2 shadow-sm bg-base-100 rounded-box w-52"
+              onClick={() => {
+                burgerMenuRef?.current?.removeAttribute("open");
+              }}
+            >
+              <HeaderMenuLinks />
+            </ul>
+          </details>
+        </div>
       </div>
     </div>
   );
