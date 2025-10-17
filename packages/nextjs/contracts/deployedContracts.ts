@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   8453: {
     Marketplace: {
-      address: "0x0b48f81a5d1c42a66D81c35cAf568C981F93BE05",
+      address: "0xf1B9CB7D0256a02E997586361D05829e7801D74B",
       abi: [
         {
           inputs: [],
@@ -268,10 +268,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 36913490,
+      deployedOnBlock: 36962390,
     },
     SimpleListings: {
-      address: "0x0aB8529CD6ED35918e7dF8bdcb80A7b02e7153c8",
+      address: "0x0fe4e093e587c33036c9e203CF6328B61844812d",
       abi: [
         {
           inputs: [
@@ -615,7 +615,7 @@ const deployedContracts = {
         getListing: "contracts/IListingType.sol",
         handleAction: "contracts/IListingType.sol",
       },
-      deployedOnBlock: 36913507,
+      deployedOnBlock: 36962392,
     },
   },
   31337: {
@@ -1801,7 +1801,7 @@ const deployedContracts = {
       deployedOnBlock: 11,
     },
     Marketplace: {
-      address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      address: "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
       abi: [
         {
           inputs: [],
@@ -1816,6 +1816,11 @@ const deployedContracts = {
         {
           inputs: [],
           name: "OnlyListingTypeCanModify",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ReentrancyGuardReentrantCall",
           type: "error",
         },
         {
@@ -2057,7 +2062,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 1,
+      deployedOnBlock: 17,
     },
     SchemaRegistry: {
       address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
@@ -2207,7 +2212,7 @@ const deployedContracts = {
       deployedOnBlock: 9,
     },
     SimpleListings: {
-      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      address: "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
       abi: [
         {
           inputs: [
@@ -2551,7 +2556,7 @@ const deployedContracts = {
         getListing: "contracts/IListingType.sol",
         handleAction: "contracts/IListingType.sol",
       },
-      deployedOnBlock: 3,
+      deployedOnBlock: 19,
     },
     TestERC20_2dec: {
       address: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",

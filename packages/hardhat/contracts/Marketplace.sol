@@ -46,7 +46,7 @@ contract Marketplace is ReentrancyGuard {
         emit ListingAction(id, msg.sender, action);
     }
 
-    function setActive(uint256 listingId, bool active) external nonReentrant {
+    function setActive(uint256 listingId, bool active) external {
         ListingPointer storage record = listings[listingId];
         if (msg.sender != record.listingType) revert OnlyListingTypeCanModify();
         record.active = active;
