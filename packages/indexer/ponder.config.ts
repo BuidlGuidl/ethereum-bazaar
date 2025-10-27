@@ -11,11 +11,18 @@ const CHAIN_NAME = CHAIN_ID === 31337 ? "hardhat" : "base";
 const EASConfigForChain = EASConfig[String(CHAIN_ID) as keyof typeof EASConfig];
 const MarketplaceDeploymentForChain = CHAIN_ID === 31337 ? MarketplaceDeploymentHardhat : MarketplaceDeploymentBase;
 
+// Parse RPC URLs - handle comma-separated list or single URL
+const getRpcUrls = () => {
+  const rpcEnvVar = process.env[`PONDER_RPC_URL_${process.env.PONDER_CHAIN_ID}`] ?? "https://base.llamarpc.com";
+  const urls = rpcEnvVar.split(',').map(url => url.trim());
+  return urls.length > 1 ? urls : rpcEnvVar;
+};
+
 export default createConfig({
   chains: {
     [CHAIN_NAME]: {
       id: Number(process.env.PONDER_CHAIN_ID ?? 8453),
-      rpc: process.env[`PONDER_RPC_URL_${process.env.PONDER_CHAIN_ID}`] ?? "https://base.llamarpc.com",
+      rpc: getRpcUrls(),
     },
   },
   contracts: {
