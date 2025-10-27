@@ -191,7 +191,7 @@ const ReviewRecentSalesPage = () => {
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 mx-auto max-w-6xl space-y-4">
       <h1 className="text-2xl font-semibold">Recent Activity</h1>
       {loading ? <div>Loading…</div> : null}
 
@@ -220,7 +220,13 @@ const ReviewRecentSalesPage = () => {
                     ? (() => {
                         const url = resolveIpfsUrl(s.image);
                         return url ? (
-                          <Image src={url} alt="listing" width={320} height={200} className="w-full max-w-xs rounded" />
+                          <Image
+                            src={url}
+                            alt="listing"
+                            width={320}
+                            height={200}
+                            className="w-full max-w-xs rounded block mx-auto"
+                          />
                         ) : null;
                       })()
                     : null}
@@ -295,7 +301,13 @@ const ReviewRecentSalesPage = () => {
                     ? (() => {
                         const url = resolveIpfsUrl(s.image);
                         return url ? (
-                          <Image src={url} alt="listing" width={320} height={200} className="w-full max-w-xs rounded" />
+                          <Image
+                            src={url}
+                            alt="listing"
+                            width={320}
+                            height={200}
+                            className="w-full max-w-xs rounded block mx-auto"
+                          />
                         ) : null;
                       })()
                     : null}
