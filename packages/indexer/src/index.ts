@@ -237,6 +237,13 @@ ponder.on("Marketplace:ListingActivationChanged" as any, async ({ event, context
     .where(eq(listings.id, args.listingId.toString()));
 });
 
+ponder.on("Marketplace:ListingDeleted" as any, async ({ event, context }) => {
+  const { db } = context;
+  const args = (event as any).args;
+  const listingId = args.id.toString();
+  await db.sql.delete(listings).where(eq(listings.id, listingId));
+});
+
 // (No SimpleListings event handlers required)
 
 // --- EAS Reviews indexing ---
