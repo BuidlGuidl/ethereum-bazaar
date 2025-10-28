@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { encodeAbiParameters, isAddress, parseEther, parseUnits, zeroAddress } from "viem";
+import { encodeAbiParameters, isAddress, keccak256, parseEther, parseUnits, stringToHex, zeroAddress } from "viem";
 import { useReadContract } from "wagmi";
 import { useMiniapp } from "~~/components/MiniappProvider";
 import { IPFSUploader } from "~~/components/marketplace/IPFSUploader";
@@ -40,6 +40,10 @@ const KNOWN_TOKENS = TOKENS_JSON as Record<string, `0x${string}`>;
 const NewListingPageInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const editingId = useMemo(() => {
+    const v = searchParams.get("edit");
+    return v ? v : null;
+  }, [searchParams]);
   const { composeCast, isMiniApp } = useMiniapp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -101,8 +105,6 @@ const NewListingPageInner = () => {
       } catch {
         // ignore
       }
-    } else {
-      setDecimalsOverride(null);
     }
   }, [tokenDecimalsData, isCustomToken, isKnownToken]);
 
@@ -131,8 +133,8 @@ const NewListingPageInner = () => {
     if (!(title || "").trim()) return false;
     if (!isNonZeroPrice) return false;
     if (!hasAtLeastOneContact) return false;
-    if (isCustomToken) return isTokenAddressValid && decimalsOverride !== null && !loadingDecimals;
-    if (isKnownToken) return decimalsOverride !== null && !loadingDecimals;
+    if (isCustomToken) return isTokenAddressValid && decimalsOverride !== null;
+    if (isKnownToken) return decimalsOverride !== null;
     return true;
   }, [
     locationId,
@@ -143,7 +145,6 @@ const NewListingPageInner = () => {
     isKnownToken,
     isTokenAddressValid,
     decimalsOverride,
-    loadingDecimals,
   ]);
 
   // Derive a human-friendly price label similar to listing page using in-memory values
@@ -164,18 +165,110 @@ const NewListingPageInner = () => {
     }
   }, [price, isCustomToken, isKnownToken, tokenSymbolData, currency]);
 
+  const buildContactObject = () => {
+    return Object.fromEntries(
+      contacts
+        .filter(c => (c.value || "").trim())
+        .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
+    );
+  };
+
+  const buildMetadata = (finalImageCid: string | null) => {
+    const contactObj = buildContactObject();
+    return {
+      title,
+      description,
+      category,
+      tags,
+      price,
+      currency,
+      contact: Object.keys(contactObj).length ? contactObj : undefined,
+      image: finalImageCid || null,
+      locationId,
+    };
+  };
+
+  const encodePaymentData = () => {
+    const paymentToken: `0x${string}` = isCustomToken
+      ? (tokenAddress as `0x${string}`)
+      : isKnownToken
+        ? (KNOWN_TOKENS[currency] as `0x${string}`)
+        : zeroAddress;
+    const priceWei = !(isCustomToken || isKnownToken)
+      ? parseEther(price || "0")
+      : parseUnits(price || "0", (decimalsOverride ?? 18) as number);
+
+    return encodeAbiParameters(
+      [
+        { name: "paymentToken", type: "address" },
+        { name: "price", type: "uint256" },
+      ],
+      [paymentToken, priceWei],
+    );
+  };
+
+  const extractListingId = (receipt: any) => {
+    try {
+      const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
+      const createdLog = receipt.logs.find((l: any) => l.address?.toLowerCase() === mpAddress);
+      if (createdLog && createdLog.topics && createdLog.topics.length >= 2) {
+        try {
+          const hex = createdLog.topics[1] as string;
+          if (hex && hex.startsWith("0x")) return String(BigInt(hex));
+        } catch {}
+      }
+    } catch {}
+    return undefined;
+  };
+
+  const shareListingCast = (newId: string) => {
+    if (isMiniApp) {
+      try {
+        const base = process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
+        const url = `${base}/listing/${encodeURIComponent(newId)}`;
+        const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
+        const embeds: string[] = [url];
+        setTimeout(() => {
+          composeCast({ text, embeds }).catch(() => {});
+        }, 300);
+      } catch {}
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (editingId) {
+        let finalImageCid = imageCid;
+        if (selectedImage) {
+          const { uploadFile } = await import("~~/services/ipfs/upload");
+          const uploaded = await uploadFile(selectedImage);
+          finalImageCid = uploaded;
+        }
+
+        const metadata = buildMetadata(finalImageCid);
+        const cid = await uploadJSON(metadata);
+        const encoded = encodePaymentData();
+
+        const UPDATE_SELECTOR = ("0x" +
+          keccak256(stringToHex("update(uint256,address,bool,address,bytes)")).slice(2, 10)) as `0x${string}`;
+        const UPDATE_ACTION = (UPDATE_SELECTOR + "0".repeat(64 - 8)) as `0x${string}`;
+
+        await writeMarketplace({ functionName: "setListingContenthash" as any, args: [BigInt(editingId), cid] as any });
+        await writeMarketplace({
+          functionName: "callAction",
+          args: [BigInt(editingId), UPDATE_ACTION as any, encoded],
+        });
+        router.push(`/listing/${encodeURIComponent(editingId)}?refetch=${Date.now()}`);
+        return;
+      }
+
       if (!locationId) {
         setSubmitting(false);
         return;
       }
-      if (!contacts.some(c => (c.value || "").trim().length > 0)) {
-        setSubmitting(false);
-        return;
-      }
+
       // If a file is selected but not uploaded yet, upload it now
       if (!imageCid && selectedImage) {
         try {
@@ -185,41 +278,9 @@ const NewListingPageInner = () => {
           setImageCid(uploaded);
           // Use local variable to avoid race with state update
           const localImageCid = uploaded;
-          const contactObject = Object.fromEntries(
-            contacts
-              .filter(c => (c.value || "").trim())
-              .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
-          );
-
-          const metadata = {
-            title,
-            description,
-            category,
-            tags,
-            price,
-            currency,
-            contact: Object.keys(contactObject).length ? contactObject : undefined,
-            image: localImageCid,
-            locationId,
-          };
+          const metadata = buildMetadata(localImageCid);
           const cid = await uploadJSON(metadata);
-
-          const paymentToken: `0x${string}` = isCustomToken
-            ? (tokenAddress as `0x${string}`)
-            : isKnownToken
-              ? (KNOWN_TOKENS[currency] as `0x${string}`)
-              : zeroAddress;
-          const priceWei = !(isCustomToken || isKnownToken)
-            ? parseEther(price || "0")
-            : parseUnits(price || "0", (decimalsOverride ?? 18) as number);
-
-          const encoded = encodeAbiParameters(
-            [
-              { name: "paymentToken", type: "address" },
-              { name: "price", type: "uint256" },
-            ],
-            [paymentToken, priceWei],
-          );
+          const encoded = encodePaymentData();
           // no-op: we no longer add extra image embeds; rely on page embed image
 
           // Write and wait for receipt so we can derive the new listing id from logs
@@ -231,37 +292,9 @@ const NewListingPageInner = () => {
             {
               blockConfirmations: 1,
               onBlockConfirmation: receipt => {
-                try {
-                  // Parse ListingCreated log from Marketplace
-                  const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
-                  const createdLog = receipt.logs.find(l => (l as any).address?.toLowerCase() === mpAddress);
-                  let newId: string | undefined;
-                  if (createdLog && (createdLog as any).topics && (createdLog as any).topics.length >= 2) {
-                    try {
-                      const hex = (createdLog as any).topics[1] as string;
-                      if (hex && hex.startsWith("0x")) newId = String(BigInt(hex));
-                    } catch {}
-                  }
-
-                  // Navigate to location first for UX consistency
-                  router.push(`/location/${encodeURIComponent(locationId)}`);
-
-                  // Prompt to share using in-memory details even before indexing
-                  if (isMiniApp && newId) {
-                    try {
-                      const base =
-                        process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
-                      const url = `${base}/listing/${encodeURIComponent(newId)}`;
-                      const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
-                      const embeds: string[] = [];
-                      if (url) embeds.push(url);
-
-                      setTimeout(() => {
-                        composeCast({ text, embeds }).catch(() => {});
-                      }, 300);
-                    } catch {}
-                  }
-                } catch {}
+                const newId = extractListingId(receipt);
+                router.push(`/location/${encodeURIComponent(locationId)}`);
+                if (newId) shareListingCast(newId);
               },
             },
           );
@@ -269,42 +302,9 @@ const NewListingPageInner = () => {
         } catch {}
       }
 
-      const contactObject = Object.fromEntries(
-        contacts
-          .filter(c => (c.value || "").trim())
-          .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
-      );
-
-      const metadata = {
-        title,
-        description,
-        category,
-        tags,
-        price,
-        currency,
-        contact: Object.keys(contactObject).length ? contactObject : undefined,
-        image: imageCid || null,
-        locationId,
-      };
+      const metadata = buildMetadata(imageCid);
       const cid = await uploadJSON(metadata);
-
-      const paymentToken: `0x${string}` = isCustomToken
-        ? (tokenAddress as `0x${string}`)
-        : isKnownToken
-          ? (KNOWN_TOKENS[currency] as `0x${string}`)
-          : zeroAddress;
-      const priceWei = !(isCustomToken || isKnownToken)
-        ? parseEther(price || "0")
-        : parseUnits(price || "0", decimalsOverride ?? 18);
-
-      // use viem to encode the data
-      const encoded = encodeAbiParameters(
-        [
-          { name: "paymentToken", type: "address" },
-          { name: "price", type: "uint256" },
-        ],
-        [paymentToken, priceWei],
-      );
+      const encoded = encodePaymentData();
 
       await writeMarketplace(
         {
@@ -314,34 +314,9 @@ const NewListingPageInner = () => {
         {
           blockConfirmations: 1,
           onBlockConfirmation: receipt => {
-            try {
-              const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
-              const createdLog = receipt.logs.find(l => (l as any).address?.toLowerCase() === mpAddress);
-              let newId: string | undefined;
-              if (createdLog && (createdLog as any).topics && (createdLog as any).topics.length >= 2) {
-                try {
-                  const hex = (createdLog as any).topics[1] as string;
-                  if (hex && hex.startsWith("0x")) newId = String(BigInt(hex));
-                } catch {}
-              }
-
-              router.push(`/location/${encodeURIComponent(locationId)}`);
-
-              if (isMiniApp && newId) {
-                try {
-                  const base =
-                    process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
-                  const url = `${base}/listing/${encodeURIComponent(newId)}`;
-                  const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
-                  const embeds: string[] = [];
-                  if (url) embeds.push(url);
-
-                  setTimeout(() => {
-                    composeCast({ text, embeds }).catch(() => {});
-                  }, 300);
-                } catch {}
-              }
-            } catch {}
+            const newId = extractListingId(receipt);
+            router.push(`/location/${encodeURIComponent(locationId)}`);
+            if (newId) shareListingCast(newId);
           },
         },
       );
@@ -351,6 +326,88 @@ const NewListingPageInner = () => {
     }
   };
 
+  // Prefill when editing
+  useEffect(() => {
+    if (!editingId) return;
+    (async () => {
+      try {
+        const res = await fetch(process.env.NEXT_PUBLIC_PONDER_URL || "http://localhost:42069/graphql", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            query: `
+              query ListingById($id: String!) {
+                listings(id: $id) {
+                  id
+                  title
+                  description
+                  category
+                  tags
+                  price
+                  currency
+                  image
+                  contact
+                  locationId
+                  paymentToken
+                  tokenDecimals
+                }
+              }
+            `,
+            variables: { id: editingId },
+          }),
+        });
+        const json = await res.json();
+        const item = json?.data?.listings || null;
+        if (!item) return;
+        setTitle((item.title as string) || "");
+        setDescription((item.description as string) || "");
+        setCategory((item.category as string) || "");
+        const tgRaw = item.tags as any;
+        if (Array.isArray(tgRaw)) setTags(tgRaw.map((t: any) => String(t)).filter(Boolean));
+        else if (typeof tgRaw === "string")
+          setTags(
+            tgRaw
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter(Boolean),
+          );
+        setPrice((item.price as string) || "");
+        const cur = (item.currency as string) || "ETH";
+        setCurrency(cur);
+        // Set token address from paymentToken if present and not ETH
+        const pt = (item.paymentToken as string)?.toLowerCase();
+        if (
+          pt &&
+          pt !== "0x0000000000000000000000000000000000000000" &&
+          Object.values(KNOWN_TOKENS)
+            .map(v => v.toLowerCase())
+            .includes(pt)
+        ) {
+          const tokenKey = Object.entries(KNOWN_TOKENS).find(([, a]) => a.toLowerCase() === pt)?.[0];
+          if (tokenKey) setCurrency(tokenKey);
+        } else if (pt && pt !== "0x0000000000000000000000000000000000000000") {
+          // Custom token
+          setCurrency("TOKEN");
+          setTokenAddress(pt);
+        }
+        // Set decimals from indexer if available
+        const decimals = item.tokenDecimals;
+        if (typeof decimals === "number" && decimals >= 0 && decimals <= 255) {
+          setDecimalsOverride(decimals);
+        }
+        setImageCid((item.image as string) || null);
+        setLocationId((item.locationId as string) || "");
+        const contactObj = (item.contact || {}) as Record<string, string>;
+        const contactEntries = Object.entries(contactObj).map(([k, v]) => {
+          const known = ["farcaster", "telegram", "email", "text", "phone", "whatsapp"];
+          const type = known.includes(k) ? k : "other";
+          return { type, key: type === "other" ? k : undefined, value: v };
+        });
+        setContacts(contactEntries.length ? contactEntries : [{ type: "farcaster", value: "" }]);
+      } catch {}
+    })();
+  }, [editingId]);
+
   // Initialize selected location preferring query param (?loc=)
   useEffect(() => {
     try {
@@ -358,7 +415,7 @@ const NewListingPageInner = () => {
       if (viaQuery) {
         const decoded = decodeURIComponent(viaQuery);
         setLocationId(decoded);
-        // persist into recents for consistency
+        // persist into recents for consistency (only when not editing)
         try {
           const stored = localStorage.getItem("marketplace.locations");
           const prev: string[] = stored ? JSON.parse(stored) : [];
@@ -384,7 +441,7 @@ const NewListingPageInner = () => {
         className={`p-4 space-y-3 ${submitting ? "opacity-60 pointer-events-none" : ""}`}
         onSubmit={onSubmit}
       >
-        <h1 className="text-2xl font-semibold">Create Listing</h1>
+        <h1 className="text-2xl font-semibold">{editingId ? "Edit" : "Create Listing"}</h1>
         <input
           className="input input-bordered w-full"
           placeholder="Title"
@@ -544,7 +601,7 @@ const NewListingPageInner = () => {
         </div>
         <IPFSUploader onSelected={setSelectedImage} />
         <button className="btn btn-primary w-full" disabled={submitting || !canSubmit}>
-          {submitting ? "Creating..." : "Create"}
+          {editingId ? "Edit" : submitting ? "Creating..." : "Create"}
         </button>
       </form>
     </>

@@ -164,6 +164,14 @@ const ListingDetailsPageInner = () => {
     }
   }, [idNum, writeMarketplace, router]);
 
+  const handleOpenEdit = useCallback(() => {
+    const idStr = params?.id;
+    if (!idStr) return;
+    const base = `/listing/new?edit=${encodeURIComponent(idStr)}`;
+    const from = indexed?.locationId;
+    router.push(from ? `${base}&loc=${encodeURIComponent(from)}` : base);
+  }, [params?.id, indexed?.locationId, router]);
+
   const tags = useMemo(() => {
     const raw = (data?.tags ?? (indexed as any)?.tags) as unknown;
     if (!raw) return [] as string[];
@@ -287,13 +295,23 @@ const ListingDetailsPageInner = () => {
         <div className="flex items-center gap-2 ml-auto">
           <div className={`badge ${active ? "badge-success" : ""}`}>{active ? "Active" : "Sold"}</div>
           {isCreator && (
-            <button
-              className="badge badge-error cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete"}
-            </button>
+            <div className="dropdown dropdown-end">
+              <div tabIndex={0} role="button" className="btn btn-ghost btn-sm text-lg">
+                ⋯
+              </div>
+              <ul tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-[1] w-32 p-2 shadow">
+                <li>
+                  <button onClick={handleOpenEdit} className="w-full text-left">
+                    Edit
+                  </button>
+                </li>
+                <li>
+                  <button onClick={handleDelete} disabled={deleting} className="w-full text-left text-error">
+                    {deleting ? "Deleting..." : "Delete"}
+                  </button>
+                </li>
+              </ul>
+            </div>
           )}
         </div>
       </div>
