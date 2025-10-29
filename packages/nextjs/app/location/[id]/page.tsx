@@ -263,6 +263,7 @@ const LocationPage = () => {
                 <option value="community">Community</option>
                 <option value="garage_sales">Garage & Yard Sales</option>
                 <option value="rideshare">Rideshare & Carpool</option>
+                <option value="experiences">Experiences</option>
                 <option value="other">Other</option>
               </select>
               <div className="flex justify-end pt-1">
