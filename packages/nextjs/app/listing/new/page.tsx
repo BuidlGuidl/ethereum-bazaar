@@ -378,14 +378,14 @@ const NewListingPageInner = () => {
         const pt = (item.paymentToken as string)?.toLowerCase();
         if (
           pt &&
-          pt !== "0x0000000000000000000000000000000000000000" &&
+          pt !== zeroAddress &&
           Object.values(KNOWN_TOKENS)
             .map(v => v.toLowerCase())
             .includes(pt)
         ) {
           const tokenKey = Object.entries(KNOWN_TOKENS).find(([, a]) => a.toLowerCase() === pt)?.[0];
           if (tokenKey) setCurrency(tokenKey);
-        } else if (pt && pt !== "0x0000000000000000000000000000000000000000") {
+        } else if (pt && pt !== zeroAddress) {
           // Custom token
           setCurrency("TOKEN");
           setTokenAddress(pt);
