@@ -80,21 +80,6 @@ async function fetchIpfsJson(cidOrUrl: string): Promise<any | null> {
   return null;
 }
 
-const denormalizeMetadata = (json: any): any => {
-  return {
-    metadata: json,
-    title: typeof json?.title === "string" ? json.title : null,
-    description: typeof json?.description === "string" ? json.description : null,
-    category: typeof json?.category === "string" ? json.category : null,
-    image: typeof json?.image === "string" ? json.image : null,
-    contact: typeof json?.contact === "object" ? json.contact : (typeof json?.contact === "string" ? json.contact : null),
-    tags: Array.isArray(json?.tags) ? json.tags : (typeof json?.tags === "string" ? json.tags : null),
-    price: typeof json?.price === "string" || typeof json?.price === "number" ? String(json.price) : null,
-    currency: typeof json?.currency === "string" ? json.currency : null,
-    locationId: typeof json?.locationId === "string" ? json.locationId : null,
-  };
-}
-
 // Minimal ABI to read listing pointer + data from Marketplace
 const marketplaceGetListingAbi = [
   {
@@ -111,12 +96,6 @@ const marketplaceGetListingAbi = [
     ],
   },
 ] as const;
-
-const erc20MetaAbi = [
-  { name: "name", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { name: "symbol", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
-];
 
 function signatureToSelector(signature: string): `0x${string}` {
   const hash = keccak256(stringToHex(signature));
@@ -174,6 +153,11 @@ ponder.on("Marketplace:ListingCreated" as any, async ({ event, context }) => {
               .set({ tokenName: "Ether", tokenSymbol: "ETH", tokenDecimals: 18 })
               .where(eq(listings.id, id));
           } else {
+            const erc20MetaAbi = [
+              { name: "name", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+              { name: "symbol", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+              { name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+            ] as const;
             const [name, symbol, decimals] = await Promise.all([
               publicClient.readContract({ address: pt as `0x${string}`, abi: erc20MetaAbi, functionName: "name" }).catch(() => null),
               publicClient.readContract({ address: pt as `0x${string}`, abi: erc20MetaAbi, functionName: "symbol" }).catch(() => null),
@@ -197,7 +181,19 @@ ponder.on("Marketplace:ListingCreated" as any, async ({ event, context }) => {
   try {
     const json: any | null = await fetchIpfsJson(cid);
     if (json) {
-      const denorm = denormalizeMetadata(json);
+      const denorm: any = {
+        metadata: json,
+        // Top-level denormalized fields for convenient querying & UI
+        title: typeof json?.title === "string" ? json.title : null,
+        description: typeof json?.description === "string" ? json.description : null,
+        category: typeof json?.category === "string" ? json.category : null,
+        image: typeof json?.image === "string" ? json.image : null,
+        contact: typeof json?.contact === "object" ? json.contact : (typeof json?.contact === "string" ? json.contact : null),
+        tags: Array.isArray(json?.tags) ? json.tags : (typeof json?.tags === "string" ? json.tags : null),
+        price: typeof json?.price === "string" || typeof json?.price === "number" ? String(json.price) : null,
+        currency: typeof json?.currency === "string" ? json.currency : null,
+        locationId: typeof json?.locationId === "string" ? json.locationId : null,
+      };
       await db.sql.update(listings).set(denorm).where(eq(listings.id, id));
     }
   } catch {}
@@ -241,88 +237,7 @@ ponder.on("Marketplace:ListingActivationChanged" as any, async ({ event, context
     .where(eq(listings.id, args.listingId.toString()));
 });
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-ponder.on("Marketplace:ListingDeleted" as any, async ({ event, context }) => {
-  const { db } = context;
-  const args = (event as any).args;
-  const listingId = args.id.toString();
-  await db.sql.delete(listings).where(eq(listings.id, listingId));
-});
-
-ponder.on("Marketplace:ListingContenthashUpdated" as any, async ({ event, context }) => {
-  const { db } = context;
-  const listingId = (event as any).args.id.toString();
-  const cid = (event as any).args.contenthash as string;
-
-  try {
-    await db.sql.update(listings).set({ cid }).where(eq(listings.id, listingId));
-    const json: any | null = await fetchIpfsJson(cid);
-    if (json) {
-      const denorm = denormalizeMetadata(json);
-      await db.sql.update(listings).set(denorm).where(eq(listings.id, listingId));
-    }
-
-    try {
-      const mpAddress = ((event as any).log?.address as string) || ((event as any).transaction?.to as string);
-      if (mpAddress) {
-        const [, , , , listingData] = (await publicClient.readContract({
-          address: mpAddress as `0x${string}`,
-          abi: marketplaceGetListingAbi,
-          functionName: "getListing",
-          args: [BigInt(listingId)],
-        })) as unknown as [string, string, string, boolean, Hex];
-
-        if (listingData && (listingData).length > 0) {
-          try {
-            const [paymentToken, price] = decodeAbiParameters(
-              [{ type: "address" }, { type: "uint256" }],
-              listingData,
-            );
-            await db.sql
-              .update(listings)
-              .set({
-                paymentToken: paymentToken?.toLowerCase?.() ?? null,
-                priceWei: price?.toString?.() ?? null,
-              })
-              .where(eq(listings.id, listingId));
-
-            const isEth = !paymentToken || paymentToken === zeroAddress;
-            if (isEth) {
-              await db.sql
-                .update(listings)
-                .set({ tokenName: "Ether", tokenSymbol: "ETH", tokenDecimals: 18 })
-                .where(eq(listings.id, listingId));
-            } else {
-              const [name, symbol, decimals] = await Promise.all([
-                publicClient.readContract({ address: paymentToken as `0x${string}`, abi: erc20MetaAbi, functionName: "name" }),
-                publicClient.readContract({ address: paymentToken as `0x${string}`, abi: erc20MetaAbi, functionName: "symbol" }),
-                publicClient.readContract({ address: paymentToken as `0x${string}`, abi: erc20MetaAbi, functionName: "decimals" }),
-              ]);
-              await db.sql
-                .update(listings)
-                .set({
-                  tokenName: typeof name === "string" ? name : null,
-                  tokenSymbol: typeof symbol === "string" ? symbol : null,
-                  tokenDecimals: typeof decimals === "number" ? decimals : (typeof decimals === "bigint" ? Number(decimals) : null),
-                })
-                .where(eq(listings.id, listingId));
-            }
-          } catch {}
-        }
-      }
-    } catch (chainErr) {
-      console.error(`[Ponder] Error refreshing on-chain listing data for ${listingId}:`, chainErr);
-    }
-  } catch (e) {
-    console.error(`[Ponder] Error handling ListingContenthashUpdated for ${listingId}:`, e);
-  }
-});
-=======
-=======
->>>>>>> Stashed changes
 // (No SimpleListings event handlers required)
->>>>>>> Stashed changes
 
 // --- EAS Reviews indexing ---
 // Read new per-chain keyed shape only

@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useParams } from "next/navigation";
-import { Hex, decodeAbiParameters, formatUnits } from "viem";
+import { Hex, decodeAbiParameters, formatUnits, keccak256, stringToHex } from "viem";
 import { useAccount } from "wagmi";
 import { useMiniapp } from "~~/components/MiniappProvider";
 import FcAddressRating from "~~/components/marketplace/FcAddressRating";
@@ -152,14 +152,19 @@ const ListingDetailsPageInner = () => {
     setShowDeleteModal(false);
     setDeleting(true);
     try {
+      // Call the close action to deactivate the listing instead of deleting it
+      const sigHash = keccak256(stringToHex("close(uint256,address,bool,address,bytes)"));
+      const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
+      const action = (selector + "0".repeat(64 - 8)) as `0x${string}`;
+
       await writeMarketplace({
-        functionName: "deleteListing",
-        args: [idNum],
+        functionName: "callAction",
+        args: [idNum, action, "0x"],
       });
       router.push("/");
     } catch (error) {
-      console.error("Error deleting listing:", error);
-      alert("Failed to delete listing. Please try again.");
+      console.error("Error closing listing:", error);
+      alert("Failed to close listing. Please try again.");
       setDeleting(false);
     }
   }, [idNum, writeMarketplace, router]);

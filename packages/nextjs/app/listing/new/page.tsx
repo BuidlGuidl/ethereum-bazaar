@@ -10,7 +10,8 @@ import { TagsInput } from "~~/components/marketplace/TagsInput";
 import { useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 // import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
-import { uploadJSON } from "~~/services/ipfs/upload";
+import { uploadFile, uploadJSON } from "~~/services/ipfs/upload";
+import { fetchListingById } from "~~/services/marketplace/graphql";
 import TOKENS_JSON from "~~/tokens.json";
 
 // Minimal ERC20 ABI to read decimals
@@ -36,6 +37,53 @@ const ERC20_SYMBOL_ABI = [
 ] as const;
 
 const KNOWN_TOKENS = TOKENS_JSON as Record<string, `0x${string}`>;
+
+const buildContactObject = (contacts: Array<{ type: string; key?: string; value: string }>) => {
+  return Object.fromEntries(
+    contacts
+      .filter(c => (c.value || "").trim())
+      .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
+  );
+};
+
+const parseTags = (tags: string[] | string | null): string[] => {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags.map(String).filter(Boolean);
+  if (typeof tags === "string")
+    return tags
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+  return [];
+};
+
+const determineCurrencyAndToken = (paymentToken: string | null): { currency: string; tokenAddress: string } => {
+  if (!paymentToken) return { currency: "ETH", tokenAddress: "" };
+
+  const pt = paymentToken.toLowerCase();
+  if (pt === zeroAddress.toLowerCase()) return { currency: "ETH", tokenAddress: "" };
+
+  // Check if it's a known token
+  const knownTokenEntry = Object.entries(KNOWN_TOKENS).find(([, addr]) => addr.toLowerCase() === pt);
+  if (knownTokenEntry) return { currency: knownTokenEntry[0], tokenAddress: "" };
+
+  // Custom token
+  return { currency: "TOKEN", tokenAddress: pt };
+};
+
+const parseContactEntries = (
+  contact: Record<string, string> | null,
+): Array<{ type: string; key?: string; value: string }> => {
+  if (!contact) return [{ type: "farcaster", value: "" }];
+
+  const knownTypes = ["farcaster", "telegram", "email", "text", "phone", "whatsapp"];
+  const entries = Object.entries(contact).map(([k, v]) => {
+    const type = knownTypes.includes(k) ? k : "other";
+    return { type, key: type === "other" ? k : undefined, value: v };
+  });
+
+  return entries.length ? entries : [{ type: "farcaster", value: "" }];
+};
 
 const NewListingPageInner = () => {
   const router = useRouter();
@@ -105,6 +153,8 @@ const NewListingPageInner = () => {
       } catch {
         // ignore
       }
+    } else {
+      setDecimalsOverride(null);
     }
   }, [tokenDecimalsData, isCustomToken, isKnownToken]);
 
@@ -133,8 +183,8 @@ const NewListingPageInner = () => {
     if (!(title || "").trim()) return false;
     if (!isNonZeroPrice) return false;
     if (!hasAtLeastOneContact) return false;
-    if (isCustomToken) return isTokenAddressValid && decimalsOverride !== null;
-    if (isKnownToken) return decimalsOverride !== null;
+    if (isCustomToken) return isTokenAddressValid && decimalsOverride !== null && !loadingDecimals;
+    if (isKnownToken) return decimalsOverride !== null && !loadingDecimals;
     return true;
   }, [
     locationId,
@@ -145,6 +195,7 @@ const NewListingPageInner = () => {
     isKnownToken,
     isTokenAddressValid,
     decimalsOverride,
+    loadingDecimals,
   ]);
 
   // Derive a human-friendly price label similar to listing page using in-memory values
@@ -165,16 +216,19 @@ const NewListingPageInner = () => {
     }
   }, [price, isCustomToken, isKnownToken, tokenSymbolData, currency]);
 
-  const buildContactObject = () => {
-    return Object.fromEntries(
-      contacts
-        .filter(c => (c.value || "").trim())
-        .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
-    );
+  const uploadImageIfNeeded = async () => {
+    if (selectedImage) {
+      try {
+        const uploaded = await uploadFile(selectedImage);
+        setImageCid(uploaded);
+        return uploaded;
+      } catch {}
+    }
+    return imageCid;
   };
 
   const buildMetadata = (finalImageCid: string | null) => {
-    const contactObj = buildContactObject();
+    const contactObj = buildContactObject(contacts);
     return {
       title,
       description,
@@ -196,7 +250,7 @@ const NewListingPageInner = () => {
         : zeroAddress;
     const priceWei = !(isCustomToken || isKnownToken)
       ? parseEther(price || "0")
-      : parseUnits(price || "0", (decimalsOverride ?? 18) as number);
+      : parseUnits(price || "0", decimalsOverride ?? 18);
 
     return encodeAbiParameters(
       [
@@ -239,70 +293,24 @@ const NewListingPageInner = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      if (editingId) {
-        let finalImageCid = imageCid;
-        if (selectedImage) {
-          const { uploadFile } = await import("~~/services/ipfs/upload");
-          const uploaded = await uploadFile(selectedImage);
-          finalImageCid = uploaded;
-        }
-
-        const metadata = buildMetadata(finalImageCid);
-        const cid = await uploadJSON(metadata);
-        const encoded = encodePaymentData();
-
-        const UPDATE_SELECTOR = ("0x" +
-          keccak256(stringToHex("update(uint256,address,bool,address,bytes)")).slice(2, 10)) as `0x${string}`;
-        const UPDATE_ACTION = (UPDATE_SELECTOR + "0".repeat(64 - 8)) as `0x${string}`;
-
-        await writeMarketplace({ functionName: "setListingContenthash" as any, args: [BigInt(editingId), cid] as any });
-        await writeMarketplace({
-          functionName: "callAction",
-          args: [BigInt(editingId), UPDATE_ACTION as any, encoded],
-        });
-        router.push(`/listing/${encodeURIComponent(editingId)}?refetch=${Date.now()}`);
-        return;
-      }
-
       if (!locationId) {
         setSubmitting(false);
         return;
       }
-
-      // If a file is selected but not uploaded yet, upload it now
-      if (!imageCid && selectedImage) {
-        try {
-          // Lazy-import to avoid circulars when rendering server
-          const { uploadFile } = await import("~~/services/ipfs/upload");
-          const uploaded = await uploadFile(selectedImage);
-          setImageCid(uploaded);
-          // Use local variable to avoid race with state update
-          const localImageCid = uploaded;
-          const metadata = buildMetadata(localImageCid);
-          const cid = await uploadJSON(metadata);
-          const encoded = encodePaymentData();
-          // no-op: we no longer add extra image embeds; rely on page embed image
-
-          // Write and wait for receipt so we can derive the new listing id from logs
-          await writeMarketplace(
-            {
-              functionName: "createListing",
-              args: [simpleListings?.address as `0x${string}`, cid, encoded],
-            },
-            {
-              blockConfirmations: 1,
-              onBlockConfirmation: receipt => {
-                const newId = extractListingId(receipt);
-                router.push(`/location/${encodeURIComponent(locationId)}`);
-                if (newId) shareListingCast(newId);
-              },
-            },
-          );
-          return;
-        } catch {}
+      if (!contacts.some(c => (c.value || "").trim().length > 0)) {
+        setSubmitting(false);
+        return;
+      }
+      if (editingId) {
+        const sigHash = keccak256(stringToHex("close(uint256,address,bool,address,bytes)"));
+        const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
+        const action = (selector + "0".repeat(64 - 8)) as `0x${string}`;
+        await writeMarketplace({ functionName: "callAction", args: [BigInt(editingId), action, "0x"] });
       }
 
-      const metadata = buildMetadata(imageCid);
+      const finalImageCid = await uploadImageIfNeeded();
+
+      const metadata = buildMetadata(finalImageCid);
       const cid = await uploadJSON(metadata);
       const encoded = encodePaymentData();
 
@@ -320,96 +328,43 @@ const NewListingPageInner = () => {
           },
         },
       );
-      return;
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Prefill when editing
   useEffect(() => {
     if (!editingId) return;
-    (async () => {
+    const populateListingData = async () => {
       try {
-        const res = await fetch(process.env.NEXT_PUBLIC_PONDER_URL || "http://localhost:42069/graphql", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            query: `
-              query ListingById($id: String!) {
-                listings(id: $id) {
-                  id
-                  title
-                  description
-                  category
-                  tags
-                  price
-                  currency
-                  image
-                  contact
-                  locationId
-                  paymentToken
-                  tokenDecimals
-                }
-              }
-            `,
-            variables: { id: editingId },
-          }),
-        });
-        const json = await res.json();
-        const item = json?.data?.listings || null;
+        const item = await fetchListingById(editingId);
         if (!item) return;
-        setTitle((item.title as string) || "");
-        setDescription((item.description as string) || "");
-        setCategory((item.category as string) || "");
-        const tgRaw = item.tags as any;
-        if (Array.isArray(tgRaw)) setTags(tgRaw.map((t: any) => String(t)).filter(Boolean));
-        else if (typeof tgRaw === "string")
-          setTags(
-            tgRaw
-              .split(",")
-              .map((s: string) => s.trim())
-              .filter(Boolean),
-          );
-        setPrice((item.price as string) || "");
-        const cur = (item.currency as string) || "ETH";
-        setCurrency(cur);
-        // Set token address from paymentToken if present and not ETH
-        const pt = (item.paymentToken as string)?.toLowerCase();
-        if (
-          pt &&
-          pt !== zeroAddress &&
-          Object.values(KNOWN_TOKENS)
-            .map(v => v.toLowerCase())
-            .includes(pt)
-        ) {
-          const tokenKey = Object.entries(KNOWN_TOKENS).find(([, a]) => a.toLowerCase() === pt)?.[0];
-          if (tokenKey) setCurrency(tokenKey);
-        } else if (pt && pt !== zeroAddress) {
-          // Custom token
-          setCurrency("TOKEN");
-          setTokenAddress(pt);
+
+        setTitle(item.title || "");
+        setDescription(item.description || "");
+        setCategory(item.category || "");
+        setPrice(item.price || "");
+        setImageCid(item.image);
+        setLocationId(item.locationId || "");
+        setTags(parseTags(item.tags));
+
+        const { currency, tokenAddress } = determineCurrencyAndToken(item.paymentToken);
+        setCurrency(currency);
+        setTokenAddress(tokenAddress);
+
+        if (typeof item.tokenDecimals === "number" && item.tokenDecimals >= 0 && item.tokenDecimals <= 255) {
+          setDecimalsOverride(item.tokenDecimals);
         }
-        // Set decimals from indexer if available
-        const decimals = item.tokenDecimals;
-        if (typeof decimals === "number" && decimals >= 0 && decimals <= 255) {
-          setDecimalsOverride(decimals);
-        }
-        setImageCid((item.image as string) || null);
-        setLocationId((item.locationId as string) || "");
-        const contactObj = (item.contact || {}) as Record<string, string>;
-        const contactEntries = Object.entries(contactObj).map(([k, v]) => {
-          const known = ["farcaster", "telegram", "email", "text", "phone", "whatsapp"];
-          const type = known.includes(k) ? k : "other";
-          return { type, key: type === "other" ? k : undefined, value: v };
-        });
-        setContacts(contactEntries.length ? contactEntries : [{ type: "farcaster", value: "" }]);
+
+        setContacts(parseContactEntries(item.contact));
       } catch {}
-    })();
+    };
+
+    populateListingData();
   }, [editingId]);
 
-  // Initialize selected location preferring query param (?loc=)
   useEffect(() => {
+    if (editingId) return;
     try {
       const viaQuery = searchParams?.get("loc");
       if (viaQuery) {
@@ -430,7 +385,7 @@ const NewListingPageInner = () => {
         if (arr[0]) setLocationId(arr[0]);
       }
     } catch {}
-  }, [searchParams]);
+  }, [searchParams, editingId]);
 
   // No location picker UI on this page; we rely on the selected location from storage
 
@@ -601,7 +556,7 @@ const NewListingPageInner = () => {
         </div>
         <IPFSUploader onSelected={setSelectedImage} />
         <button className="btn btn-primary w-full" disabled={submitting || !canSubmit}>
-          {editingId ? "Edit" : submitting ? "Creating..." : "Create"}
+          {editingId ? (submitting ? "Saving..." : "Save Changes") : submitting ? "Creating..." : "Create"}
         </button>
       </form>
     </>
