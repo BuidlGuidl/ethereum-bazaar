@@ -8,7 +8,6 @@ contract Marketplace is ReentrancyGuard {
     error ListingCreationFailed();
     error OnlyListingTypeCanModify();
     error ListingNotFound();
-    error NotListingCreator();
 
     struct ListingPointer {
         address creator;
@@ -23,8 +22,6 @@ contract Marketplace is ReentrancyGuard {
     event ListingCreated(uint256 indexed id, address indexed creator, address indexed listingType, uint256 listingId, string contenthash);
     event ListingAction(uint256 indexed id, address indexed caller, bytes32 action);
     event ListingActivationChanged(uint256 indexed listingId, bool active);
-    event ListingDeleted(uint256 indexed id);
-    event ListingContenthashUpdated(uint256 indexed id, string contenthash);
 
     function createListing(
         address listingType,
@@ -54,24 +51,6 @@ contract Marketplace is ReentrancyGuard {
         if (msg.sender != record.listingType) revert OnlyListingTypeCanModify();
         record.active = active;
         emit ListingActivationChanged(listingId, active);
-    }
-
-    function deleteListing(uint256 listingId) external {
-        ListingPointer storage record = listings[listingId];
-        if (record.creator == address(0)) revert ListingNotFound();
-        if (msg.sender != record.creator) revert NotListingCreator();
-        
-        delete listings[listingId];
-        emit ListingDeleted(listingId);
-    }
-
-    function setListingContenthash(uint256 listingId, string calldata newContenthash) external {
-        ListingPointer storage record = listings[listingId];
-        if (record.creator == address(0)) revert ListingNotFound();
-        if (msg.sender != record.creator) revert NotListingCreator();
-
-        record.contenthash = newContenthash;
-        emit ListingContenthashUpdated(listingId, newContenthash);
     }
 
     function getListing(uint256 id) external view returns (

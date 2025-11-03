@@ -34,7 +34,6 @@ contract SimpleListings is IListingType {
     );
     event SimpleListingSold(uint256 indexed listingId, address indexed buyer, uint256 price, address paymentToken);
     event SimpleListingClosed(uint256 indexed listingId, address indexed caller);
-    event SimpleListingUpdated(uint256 indexed listingId, address indexed caller, address paymentToken, uint256 price);
 
     constructor(address _marketplace) {
         if (_marketplace == address(0)) revert MarketplaceZeroAddress();
@@ -106,20 +105,6 @@ contract SimpleListings is IListingType {
         if (creator != caller) revert NotCreator();
         Marketplace(marketplace).setActive(listingId, false);
         emit SimpleListingClosed(listingId, caller);
-    }
-
-    function update(
-        uint256 listingId,
-        address creator,
-        bool,
-        address caller,
-        bytes calldata data
-    ) external onlySelf {
-        if (creator != caller) revert NotCreator();
-        (address paymentToken, uint256 price) = abi.decode(data, (address, uint256));
-        if (price == 0) revert PriceZero();
-        listings[listingId] = SimpleListing({ paymentToken: paymentToken, price: price });
-        emit SimpleListingUpdated(listingId, caller, paymentToken, price);
     }
 
     function handleAction(

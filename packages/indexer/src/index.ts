@@ -241,6 +241,8 @@ ponder.on("Marketplace:ListingActivationChanged" as any, async ({ event, context
     .where(eq(listings.id, args.listingId.toString()));
 });
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ponder.on("Marketplace:ListingDeleted" as any, async ({ event, context }) => {
   const { db } = context;
   const args = (event as any).args;
@@ -316,6 +318,11 @@ ponder.on("Marketplace:ListingContenthashUpdated" as any, async ({ event, contex
     console.error(`[Ponder] Error handling ListingContenthashUpdated for ${listingId}:`, e);
   }
 });
+=======
+=======
+>>>>>>> Stashed changes
+// (No SimpleListings event handlers required)
+>>>>>>> Stashed changes
 
 // --- EAS Reviews indexing ---
 // Read new per-chain keyed shape only
