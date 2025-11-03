@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Hex, decodeAbiParameters, formatUnits } from "viem";
+import { Hex, decodeAbiParameters, formatUnits, zeroAddress } from "viem";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
 import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 
@@ -50,7 +50,7 @@ export const ListingCard = ({
         [{ type: "address" }, { type: "uint256" }],
         listingDataBytes as Hex,
       );
-      const isEth = String(paymentToken).toLowerCase() === "0x0000000000000000000000000000000000000000";
+      const isEth = String(paymentToken).toLowerCase() === zeroAddress;
       return {
         priceWei: price as bigint,
         tokenSymbol: isEth ? "ETH" : tokenSymbolProp || "TOKEN",

@@ -4,13 +4,14 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useParams } from "next/navigation";
-import { Hex, decodeAbiParameters, formatUnits } from "viem";
+import { Hex, decodeAbiParameters, formatUnits, keccak256, stringToHex } from "viem";
 import { useAccount } from "wagmi";
 import { useMiniapp } from "~~/components/MiniappProvider";
 import FcAddressRating from "~~/components/marketplace/FcAddressRating";
 import { PayButton } from "~~/components/marketplace/PayButton";
 import { Address } from "~~/components/scaffold-eth/Address/Address";
 import { useScaffoldReadContract } from "~~/hooks/scaffold-eth/useScaffoldReadContract";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 
 const ListingDetailsPageInner = () => {
@@ -20,9 +21,12 @@ const ListingDetailsPageInner = () => {
   const [data, setData] = useState<any | null>(null);
   const [indexed, setIndexed] = useState<any | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const { composeCast, isMiniApp } = useMiniapp();
   const idNum = useMemo(() => (params?.id ? BigInt(params.id) : undefined), [params?.id]);
-  useAccount();
+  const { address: connectedAddress } = useAccount();
+  const { writeContractAsync: writeMarketplace } = useScaffoldWriteContract({ contractName: "Marketplace" });
 
   const { data: ptr } = useScaffoldReadContract({
     contractName: "Marketplace",
@@ -130,6 +134,48 @@ const ListingDetailsPageInner = () => {
   const category = data?.category || indexed?.category || "";
   const active = data?.decoded?.active ?? indexed?.active ?? true;
   const seller = data?.pointer?.creator || indexed?.creator || undefined;
+
+  const isCreator = useMemo(() => {
+    if (!connectedAddress || !seller) return false;
+    return connectedAddress.toLowerCase() === seller.toLowerCase();
+  }, [connectedAddress, seller]);
+
+  const handleDelete = useCallback(() => {
+    setShowDeleteModal(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (idNum === undefined) {
+      return;
+    }
+
+    setShowDeleteModal(false);
+    setDeleting(true);
+    try {
+      // Call the close action to deactivate the listing instead of deleting it
+      const sigHash = keccak256(stringToHex("close(uint256,address,bool,address,bytes)"));
+      const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
+      const action = (selector + "0".repeat(64 - 8)) as `0x${string}`;
+
+      await writeMarketplace({
+        functionName: "callAction",
+        args: [idNum, action, "0x"],
+      });
+      router.push("/");
+    } catch (error) {
+      console.error("Error closing listing:", error);
+      alert("Failed to close listing. Please try again.");
+      setDeleting(false);
+    }
+  }, [idNum, writeMarketplace, router]);
+
+  const handleOpenEdit = useCallback(() => {
+    const idStr = params?.id;
+    if (!idStr) return;
+    const base = `/listing/new?edit=${encodeURIComponent(idStr)}`;
+    const from = indexed?.locationId;
+    router.push(from ? `${base}&loc=${encodeURIComponent(from)}` : base);
+  }, [params?.id, indexed?.locationId, router]);
 
   const tags = useMemo(() => {
     const raw = (data?.tags ?? (indexed as any)?.tags) as unknown;
@@ -251,7 +297,28 @@ const ListingDetailsPageInner = () => {
             Share
           </button>
         ) : null}
-        <div className={`badge ${active ? "badge-success" : ""} ml-auto`}>{active ? "Active" : "Sold"}</div>
+        <div className="flex items-center gap-2 ml-auto">
+          <div className={`badge ${active ? "badge-success" : ""}`}>{active ? "Active" : "Sold"}</div>
+          {isCreator && (
+            <div className="dropdown dropdown-end">
+              <div tabIndex={0} role="button" className="btn btn-ghost btn-sm text-lg">
+                ⋯
+              </div>
+              <ul tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-[1] w-32 p-2 shadow">
+                <li>
+                  <button onClick={handleOpenEdit} className="w-full text-left">
+                    Edit
+                  </button>
+                </li>
+                <li>
+                  <button onClick={handleDelete} disabled={deleting} className="w-full text-left text-error">
+                    {deleting ? "Deleting..." : "Delete"}
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center mb-0">
@@ -372,6 +439,23 @@ const ListingDetailsPageInner = () => {
           </div>
         </div>
       ) : null}
+
+      {showDeleteModal && (
+        <div className="modal modal-open" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg">Delete Listing</h3>
+            <p className="py-4">Are you sure you want to delete this listing? This action cannot be undone.</p>
+            <div className="modal-action">
+              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
+                Cancel
+              </button>
+              <button className="btn btn-error" onClick={confirmDelete} disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

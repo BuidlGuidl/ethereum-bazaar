@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { encodeAbiParameters, isAddress, parseEther, parseUnits, zeroAddress } from "viem";
+import { encodeAbiParameters, isAddress, keccak256, parseEther, parseUnits, stringToHex, zeroAddress } from "viem";
 import { useReadContract } from "wagmi";
 import { useMiniapp } from "~~/components/MiniappProvider";
 import { IPFSUploader } from "~~/components/marketplace/IPFSUploader";
@@ -10,7 +10,8 @@ import { TagsInput } from "~~/components/marketplace/TagsInput";
 import { useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 // import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
-import { uploadJSON } from "~~/services/ipfs/upload";
+import { uploadFile, uploadJSON } from "~~/services/ipfs/upload";
+import { fetchListingById } from "~~/services/marketplace/graphql";
 import TOKENS_JSON from "~~/tokens.json";
 
 // Minimal ERC20 ABI to read decimals
@@ -37,9 +38,60 @@ const ERC20_SYMBOL_ABI = [
 
 const KNOWN_TOKENS = TOKENS_JSON as Record<string, `0x${string}`>;
 
+const buildContactObject = (contacts: Array<{ type: string; key?: string; value: string }>) => {
+  return Object.fromEntries(
+    contacts
+      .filter(c => (c.value || "").trim())
+      .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
+  );
+};
+
+const parseTags = (tags: string[] | string | null): string[] => {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags.map(String).filter(Boolean);
+  if (typeof tags === "string")
+    return tags
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+  return [];
+};
+
+const determineCurrencyAndToken = (paymentToken: string | null): { currency: string; tokenAddress: string } => {
+  if (!paymentToken) return { currency: "ETH", tokenAddress: "" };
+
+  const pt = paymentToken.toLowerCase();
+  if (pt === zeroAddress.toLowerCase()) return { currency: "ETH", tokenAddress: "" };
+
+  // Check if it's a known token
+  const knownTokenEntry = Object.entries(KNOWN_TOKENS).find(([, addr]) => addr.toLowerCase() === pt);
+  if (knownTokenEntry) return { currency: knownTokenEntry[0], tokenAddress: "" };
+
+  // Custom token
+  return { currency: "TOKEN", tokenAddress: pt };
+};
+
+const parseContactEntries = (
+  contact: Record<string, string> | null,
+): Array<{ type: string; key?: string; value: string }> => {
+  if (!contact) return [{ type: "farcaster", value: "" }];
+
+  const knownTypes = ["farcaster", "telegram", "email", "text", "phone", "whatsapp"];
+  const entries = Object.entries(contact).map(([k, v]) => {
+    const type = knownTypes.includes(k) ? k : "other";
+    return { type, key: type === "other" ? k : undefined, value: v };
+  });
+
+  return entries.length ? entries : [{ type: "farcaster", value: "" }];
+};
+
 const NewListingPageInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const editingId = useMemo(() => {
+    const v = searchParams.get("edit");
+    return v ? v : null;
+  }, [searchParams]);
   const { composeCast, isMiniApp } = useMiniapp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -164,6 +216,79 @@ const NewListingPageInner = () => {
     }
   }, [price, isCustomToken, isKnownToken, tokenSymbolData, currency]);
 
+  const uploadImageIfNeeded = async () => {
+    if (selectedImage) {
+      try {
+        const uploaded = await uploadFile(selectedImage);
+        setImageCid(uploaded);
+        return uploaded;
+      } catch {}
+    }
+    return imageCid;
+  };
+
+  const buildMetadata = (finalImageCid: string | null) => {
+    const contactObj = buildContactObject(contacts);
+    return {
+      title,
+      description,
+      category,
+      tags,
+      price,
+      currency,
+      contact: Object.keys(contactObj).length ? contactObj : undefined,
+      image: finalImageCid || null,
+      locationId,
+    };
+  };
+
+  const encodePaymentData = () => {
+    const paymentToken: `0x${string}` = isCustomToken
+      ? (tokenAddress as `0x${string}`)
+      : isKnownToken
+        ? (KNOWN_TOKENS[currency] as `0x${string}`)
+        : zeroAddress;
+    const priceWei = !(isCustomToken || isKnownToken)
+      ? parseEther(price || "0")
+      : parseUnits(price || "0", decimalsOverride ?? 18);
+
+    return encodeAbiParameters(
+      [
+        { name: "paymentToken", type: "address" },
+        { name: "price", type: "uint256" },
+      ],
+      [paymentToken, priceWei],
+    );
+  };
+
+  const extractListingId = (receipt: any) => {
+    try {
+      const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
+      const createdLog = receipt.logs.find((l: any) => l.address?.toLowerCase() === mpAddress);
+      if (createdLog && createdLog.topics && createdLog.topics.length >= 2) {
+        try {
+          const hex = createdLog.topics[1] as string;
+          if (hex && hex.startsWith("0x")) return String(BigInt(hex));
+        } catch {}
+      }
+    } catch {}
+    return undefined;
+  };
+
+  const shareListingCast = (newId: string) => {
+    if (isMiniApp) {
+      try {
+        const base = process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
+        const url = `${base}/listing/${encodeURIComponent(newId)}`;
+        const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
+        const embeds: string[] = [url];
+        setTimeout(() => {
+          composeCast({ text, embeds }).catch(() => {});
+        }, 300);
+      } catch {}
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -176,135 +301,18 @@ const NewListingPageInner = () => {
         setSubmitting(false);
         return;
       }
-      // If a file is selected but not uploaded yet, upload it now
-      if (!imageCid && selectedImage) {
-        try {
-          // Lazy-import to avoid circulars when rendering server
-          const { uploadFile } = await import("~~/services/ipfs/upload");
-          const uploaded = await uploadFile(selectedImage);
-          setImageCid(uploaded);
-          // Use local variable to avoid race with state update
-          const localImageCid = uploaded;
-          const contactObject = Object.fromEntries(
-            contacts
-              .filter(c => (c.value || "").trim())
-              .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
-          );
-
-          const metadata = {
-            title,
-            description,
-            category,
-            tags,
-            price,
-            currency,
-            contact: Object.keys(contactObject).length ? contactObject : undefined,
-            image: localImageCid,
-            locationId,
-          };
-          const cid = await uploadJSON(metadata);
-
-          const paymentToken: `0x${string}` = isCustomToken
-            ? (tokenAddress as `0x${string}`)
-            : isKnownToken
-              ? (KNOWN_TOKENS[currency] as `0x${string}`)
-              : zeroAddress;
-          const priceWei = !(isCustomToken || isKnownToken)
-            ? parseEther(price || "0")
-            : parseUnits(price || "0", (decimalsOverride ?? 18) as number);
-
-          const encoded = encodeAbiParameters(
-            [
-              { name: "paymentToken", type: "address" },
-              { name: "price", type: "uint256" },
-            ],
-            [paymentToken, priceWei],
-          );
-          // no-op: we no longer add extra image embeds; rely on page embed image
-
-          // Write and wait for receipt so we can derive the new listing id from logs
-          await writeMarketplace(
-            {
-              functionName: "createListing",
-              args: [simpleListings?.address as `0x${string}`, cid, encoded],
-            },
-            {
-              blockConfirmations: 1,
-              onBlockConfirmation: receipt => {
-                try {
-                  // Parse ListingCreated log from Marketplace
-                  const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
-                  const createdLog = receipt.logs.find(l => (l as any).address?.toLowerCase() === mpAddress);
-                  let newId: string | undefined;
-                  if (createdLog && (createdLog as any).topics && (createdLog as any).topics.length >= 2) {
-                    try {
-                      const hex = (createdLog as any).topics[1] as string;
-                      if (hex && hex.startsWith("0x")) newId = String(BigInt(hex));
-                    } catch {}
-                  }
-
-                  // Navigate to location first for UX consistency
-                  router.push(`/location/${encodeURIComponent(locationId)}`);
-
-                  // Prompt to share using in-memory details even before indexing
-                  if (isMiniApp && newId) {
-                    try {
-                      const base =
-                        process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
-                      const url = `${base}/listing/${encodeURIComponent(newId)}`;
-                      const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
-                      const embeds: string[] = [];
-                      if (url) embeds.push(url);
-
-                      setTimeout(() => {
-                        composeCast({ text, embeds }).catch(() => {});
-                      }, 300);
-                    } catch {}
-                  }
-                } catch {}
-              },
-            },
-          );
-          return;
-        } catch {}
+      if (editingId) {
+        const sigHash = keccak256(stringToHex("close(uint256,address,bool,address,bytes)"));
+        const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
+        const action = (selector + "0".repeat(64 - 8)) as `0x${string}`;
+        await writeMarketplace({ functionName: "callAction", args: [BigInt(editingId), action, "0x"] });
       }
 
-      const contactObject = Object.fromEntries(
-        contacts
-          .filter(c => (c.value || "").trim())
-          .map(c => [(c.type === "other" ? c.key || "other" : c.type).trim(), c.value.trim()]),
-      );
+      const finalImageCid = await uploadImageIfNeeded();
 
-      const metadata = {
-        title,
-        description,
-        category,
-        tags,
-        price,
-        currency,
-        contact: Object.keys(contactObject).length ? contactObject : undefined,
-        image: imageCid || null,
-        locationId,
-      };
+      const metadata = buildMetadata(finalImageCid);
       const cid = await uploadJSON(metadata);
-
-      const paymentToken: `0x${string}` = isCustomToken
-        ? (tokenAddress as `0x${string}`)
-        : isKnownToken
-          ? (KNOWN_TOKENS[currency] as `0x${string}`)
-          : zeroAddress;
-      const priceWei = !(isCustomToken || isKnownToken)
-        ? parseEther(price || "0")
-        : parseUnits(price || "0", decimalsOverride ?? 18);
-
-      // use viem to encode the data
-      const encoded = encodeAbiParameters(
-        [
-          { name: "paymentToken", type: "address" },
-          { name: "price", type: "uint256" },
-        ],
-        [paymentToken, priceWei],
-      );
+      const encoded = encodePaymentData();
 
       await writeMarketplace(
         {
@@ -314,51 +322,55 @@ const NewListingPageInner = () => {
         {
           blockConfirmations: 1,
           onBlockConfirmation: receipt => {
-            try {
-              const mpAddress = (marketplaceInfo?.address || "").toLowerCase();
-              const createdLog = receipt.logs.find(l => (l as any).address?.toLowerCase() === mpAddress);
-              let newId: string | undefined;
-              if (createdLog && (createdLog as any).topics && (createdLog as any).topics.length >= 2) {
-                try {
-                  const hex = (createdLog as any).topics[1] as string;
-                  if (hex && hex.startsWith("0x")) newId = String(BigInt(hex));
-                } catch {}
-              }
-
-              router.push(`/location/${encodeURIComponent(locationId)}`);
-
-              if (isMiniApp && newId) {
-                try {
-                  const base =
-                    process.env.NEXT_PUBLIC_URL || (typeof window !== "undefined" ? window.location.origin : "");
-                  const url = `${base}/listing/${encodeURIComponent(newId)}`;
-                  const text = `Check out my new listing: ${title}\n\n${description}${priceLabel ? `\n\n${priceLabel}` : ""}`;
-                  const embeds: string[] = [];
-                  if (url) embeds.push(url);
-
-                  setTimeout(() => {
-                    composeCast({ text, embeds }).catch(() => {});
-                  }, 300);
-                } catch {}
-              }
-            } catch {}
+            const newId = extractListingId(receipt);
+            router.push(`/location/${encodeURIComponent(locationId)}`);
+            if (newId) shareListingCast(newId);
           },
         },
       );
-      return;
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Initialize selected location preferring query param (?loc=)
   useEffect(() => {
+    if (!editingId) return;
+    const populateListingData = async () => {
+      try {
+        const item = await fetchListingById(editingId);
+        if (!item) return;
+
+        setTitle(item.title || "");
+        setDescription(item.description || "");
+        setCategory(item.category || "");
+        setPrice(item.price || "");
+        setImageCid(item.image);
+        setLocationId(item.locationId || "");
+        setTags(parseTags(item.tags));
+
+        const { currency, tokenAddress } = determineCurrencyAndToken(item.paymentToken);
+        setCurrency(currency);
+        setTokenAddress(tokenAddress);
+
+        if (typeof item.tokenDecimals === "number" && item.tokenDecimals >= 0 && item.tokenDecimals <= 255) {
+          setDecimalsOverride(item.tokenDecimals);
+        }
+
+        setContacts(parseContactEntries(item.contact));
+      } catch {}
+    };
+
+    populateListingData();
+  }, [editingId]);
+
+  useEffect(() => {
+    if (editingId) return;
     try {
       const viaQuery = searchParams?.get("loc");
       if (viaQuery) {
         const decoded = decodeURIComponent(viaQuery);
         setLocationId(decoded);
-        // persist into recents for consistency
+        // persist into recents for consistency (only when not editing)
         try {
           const stored = localStorage.getItem("marketplace.locations");
           const prev: string[] = stored ? JSON.parse(stored) : [];
@@ -373,7 +385,7 @@ const NewListingPageInner = () => {
         if (arr[0]) setLocationId(arr[0]);
       }
     } catch {}
-  }, [searchParams]);
+  }, [searchParams, editingId]);
 
   // No location picker UI on this page; we rely on the selected location from storage
 
@@ -384,7 +396,7 @@ const NewListingPageInner = () => {
         className={`p-4 space-y-3 ${submitting ? "opacity-60 pointer-events-none" : ""}`}
         onSubmit={onSubmit}
       >
-        <h1 className="text-2xl font-semibold">Create Listing</h1>
+        <h1 className="text-2xl font-semibold">{editingId ? "Edit" : "Create Listing"}</h1>
         <input
           className="input input-bordered w-full"
           placeholder="Title"
@@ -429,6 +441,7 @@ const NewListingPageInner = () => {
             <option value="community">Community</option>
             <option value="garage_sales">Garage & Yard Sales</option>
             <option value="rideshare">Rideshare & Carpool</option>
+            <option value="experiences">Experiences</option>
             <option value="other">Other</option>
           </select>
         </div>
@@ -543,7 +556,7 @@ const NewListingPageInner = () => {
         </div>
         <IPFSUploader onSelected={setSelectedImage} />
         <button className="btn btn-primary w-full" disabled={submitting || !canSubmit}>
-          {submitting ? "Creating..." : "Create"}
+          {editingId ? (submitting ? "Saving..." : "Save Changes") : submitting ? "Creating..." : "Create"}
         </button>
       </form>
     </>

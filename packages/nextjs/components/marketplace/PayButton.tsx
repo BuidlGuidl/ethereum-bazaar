@@ -70,12 +70,12 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled, listing
 
   const isErc20 = useMemo(() => {
     const pt = (paymentToken || "").toLowerCase();
-    return !!pt && pt !== zeroAddress.toLowerCase();
+    return !!pt && pt !== zeroAddress;
   }, [paymentToken]);
 
-  const ownerAddress = (address || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-  const tokenAddress = (paymentToken || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-  const spenderAddress = (listingTypeSpenderLower || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+  const ownerAddress = (address || zeroAddress) as `0x${string}`;
+  const tokenAddress = (paymentToken || zeroAddress) as `0x${string}`;
+  const spenderAddress = (listingTypeSpenderLower || zeroAddress) as `0x${string}`;
 
   const { data: allowanceData } = useReadContract({
     address: tokenAddress,
