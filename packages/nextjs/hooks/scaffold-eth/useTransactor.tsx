@@ -1,8 +1,7 @@
 import { Hash, SendTransactionParameters, TransactionReceipt, WalletClient } from "viem";
-import { Config, useWalletClient } from "wagmi";
+import { Config, useAccount, useSendTransaction } from "wagmi";
 import { getPublicClient } from "wagmi/actions";
 import { SendTransactionMutate } from "wagmi/query";
-import scaffoldConfig from "~~/scaffold.config";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 import { AllowedChainIds, getBlockExplorerTxLink, notification } from "~~/utils/scaffold-eth";
 import { TransactorFuncOptions, getParsedErrorWithAllAbis } from "~~/utils/scaffold-eth/contract";
@@ -34,27 +33,15 @@ const TxnNotification = ({ message, blockExplorerLink }: { message: string; bloc
  * @returns function that takes in transaction function as callback, shows UI feedback for transaction and returns a promise of the transaction hash
  */
 export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => {
-  let walletClient = _walletClient;
-  const { data } = useWalletClient();
-  if (walletClient === undefined && data) {
-    walletClient = data;
-  }
+  const { chainId } = useAccount();
+  const { data: txHash, sendTransaction } = useSendTransaction();
 
   const result: TransactionFunc = async (tx, options) => {
-    if (!walletClient) {
-      notification.error("Cannot access account");
-      console.error("⚡️ ~ file: useTransactor.tsx ~ error");
-      return;
-    }
-
     let notificationId = null;
     let transactionHash: Hash | undefined = undefined;
     let transactionReceipt: TransactionReceipt | undefined;
     let blockExplorerTxURL = "";
-    let chainId: number = scaffoldConfig.targetNetworks[0].id;
     try {
-      chainId = await walletClient.getChainId();
-      // Get full transaction from public client
       const publicClient = getPublicClient(wagmiConfig);
 
       notificationId = notification.loading(<TxnNotification message="Awaiting for user confirmation" />);
@@ -63,23 +50,36 @@ export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => 
         const result = await tx();
         transactionHash = result;
       } else if (tx != null) {
-        transactionHash = await walletClient.sendTransaction(tx as SendTransactionParameters);
+        if (_walletClient) {
+          transactionHash = await _walletClient.sendTransaction(tx as SendTransactionParameters);
+        } else {
+          sendTransaction(tx as SendTransactionParameters);
+          transactionHash = txHash;
+        }
       } else {
         throw new Error("Incorrect transaction passed to transactor");
       }
       notification.remove(notificationId);
 
-      blockExplorerTxURL = chainId ? getBlockExplorerTxLink(chainId, transactionHash) : "";
+      blockExplorerTxURL = chainId && transactionHash ? getBlockExplorerTxLink(chainId, transactionHash) : "";
 
       notificationId = notification.loading(
         <TxnNotification message="Waiting for transaction to complete." blockExplorerLink={blockExplorerTxURL} />,
       );
 
-      transactionReceipt = await publicClient.waitForTransactionReceipt({
+      if (!transactionHash) {
+        throw new Error("Transaction hash is undefined");
+      }
+
+      transactionReceipt = await publicClient?.waitForTransactionReceipt({
         hash: transactionHash,
         confirmations: options?.blockConfirmations,
       });
       notification.remove(notificationId);
+
+      if (!transactionReceipt) {
+        throw new Error("Transaction receipt is undefined");
+      }
 
       if (transactionReceipt.status === "reverted") throw new Error("Transaction reverted");
 
@@ -90,7 +90,7 @@ export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => 
         },
       );
 
-      if (options?.onBlockConfirmation) options.onBlockConfirmation(transactionReceipt);
+      if (options?.onBlockConfirmation && transactionReceipt) options.onBlockConfirmation(transactionReceipt);
     } catch (error: any) {
       if (notificationId) {
         notification.remove(notificationId);

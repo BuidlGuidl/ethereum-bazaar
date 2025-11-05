@@ -21,7 +21,7 @@ const localWalletClient = createWalletClient({
  * FaucetButton button which lets you grab eth.
  */
 export const FaucetButton = () => {
-  const { address, chain: ConnectedChain } = useAccount();
+  const { address, chainId } = useAccount();
 
   const { data: balance } = useWatchBalance({ address });
 
@@ -46,7 +46,7 @@ export const FaucetButton = () => {
   };
 
   // Render only on local chain
-  if (ConnectedChain?.id !== hardhat.id) {
+  if (chainId !== hardhat.id) {
     return null;
   }
 

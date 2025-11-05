@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import BackButton from "./BackButton";
+import { useWallets } from "@privy-io/react-auth";
 import { hardhat } from "viem/chains";
 import { useAccount } from "wagmi";
 import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
@@ -79,7 +80,8 @@ export const HeaderMenuLinks = () => {
 export const Header = () => {
   const { targetNetwork } = useTargetNetwork();
   const isLocalNetwork = targetNetwork.id === hardhat.id;
-
+  const { wallets } = useWallets();
+  const isWalletConnected = wallets?.length > 0;
   const burgerMenuRef = useRef<HTMLDetailsElement>(null);
   useOutsideClick(burgerMenuRef, () => {
     burgerMenuRef?.current?.removeAttribute("open");
@@ -117,7 +119,7 @@ export const Header = () => {
         </div>
         <div className="navbar-end grow">
           <RainbowKitCustomConnectButton />
-          {isLocalNetwork && <FaucetButton />}
+          {isLocalNetwork && isWalletConnected && <FaucetButton />}
           {/* Removed Add Mini App button; auto-prompt handled in provider */}
           <details className="dropdown dropdown-end" ref={burgerMenuRef}>
             <summary className="btn btn-ghost lg:hidden hover:bg-transparent">
