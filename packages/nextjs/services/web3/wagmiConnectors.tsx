@@ -1,11 +1,10 @@
 import { farcasterMiniApp as miniAppConnector } from "@farcaster/miniapp-wagmi-connector";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
-  coinbaseWallet,
-  ledgerWallet,
+  baseAccount,
   metaMaskWallet,
+  portoWallet,
   rainbowWallet,
-  safeWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { rainbowkitBurnerWallet } from "burner-connector";
@@ -14,24 +13,27 @@ import scaffoldConfig from "~~/scaffold.config";
 
 const { onlyLocalBurnerWallet, targetNetworks } = scaffoldConfig;
 
-const farcasterWallet = () => ({
+const farcasterWallet = (() => ({
   id: "farcaster",
   name: "Farcaster Wallet",
   iconUrl: "https://farcaster.xyz/favicon.ico",
   iconBackground: "#6f3bf5",
   createConnector: () => miniAppConnector(),
-});
+})) as unknown as typeof walletConnectWallet;
+
+// Wrap burner to align its types with the local RainbowKit/Wagmi versions
+const burnerWallet = ((...args: any[]) =>
+  (rainbowkitBurnerWallet as any)(...args)) as unknown as typeof walletConnectWallet;
 
 const wallets = [
   farcasterWallet,
+  portoWallet as unknown as typeof walletConnectWallet,
   metaMaskWallet,
   walletConnectWallet,
-  ledgerWallet,
-  coinbaseWallet,
-  rainbowWallet,
-  safeWallet,
+  baseAccount as unknown as typeof walletConnectWallet,
+  rainbowWallet as unknown as typeof walletConnectWallet,
   ...(!targetNetworks.some(network => network.id !== (chains.hardhat as chains.Chain).id) || !onlyLocalBurnerWallet
-    ? [rainbowkitBurnerWallet]
+    ? [burnerWallet]
     : []),
 ];
 
@@ -48,7 +50,7 @@ export const wagmiConnectors = () => {
     ],
 
     {
-      appName: "scaffold-eth-2",
+      appName: "Ethereum Bazaar",
       projectId: scaffoldConfig.walletConnectProjectId,
     },
   );
