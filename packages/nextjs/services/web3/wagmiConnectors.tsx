@@ -21,10 +21,6 @@ const farcasterWallet = (() => ({
   createConnector: () => miniAppConnector(),
 })) as unknown as typeof walletConnectWallet;
 
-// Wrap burner to align its types with the local RainbowKit/Wagmi versions
-const burnerWallet = ((...args: any[]) =>
-  (rainbowkitBurnerWallet as any)(...args)) as unknown as typeof walletConnectWallet;
-
 const wallets = [
   farcasterWallet,
   portoWallet as unknown as typeof walletConnectWallet,
@@ -33,7 +29,7 @@ const wallets = [
   baseAccount as unknown as typeof walletConnectWallet,
   rainbowWallet as unknown as typeof walletConnectWallet,
   ...(!targetNetworks.some(network => network.id !== (chains.hardhat as chains.Chain).id) || !onlyLocalBurnerWallet
-    ? [burnerWallet]
+    ? [rainbowkitBurnerWallet as unknown as typeof walletConnectWallet]
     : []),
 ];
 

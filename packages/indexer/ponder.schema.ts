@@ -12,10 +12,13 @@ export const listings = onchainTable("listings", (t) => ({
   tokenName: t.text(),
   tokenSymbol: t.text(),
   tokenDecimals: t.integer(),
+  // QuantityListings fields (for unlimited, initial/remaining will be 0 and unlimited=true)
+  initialQuantity: t.integer(),
+  remainingQuantity: t.integer(),
+  unlimited: t.boolean(),
   // Denormalized from metadata
   title: t.text(),
   description: t.text(),
-  category: t.text(),
   image: t.text(),
   contact: t.json(),
   tags: t.json(),
@@ -40,6 +43,8 @@ export const listing_actions = onchainTable("listing_actions", (t) => ({
   caller: t.text(),
   blockNumber: t.text(),
   txHash: t.text(),
+  // For QuantityListings: best-effort derived qty per action (may be null when unlimited)
+  quantity: t.integer(),
 }));
 
 // Reviews written via EAS against the Review schema

@@ -132,21 +132,43 @@ ponder.on("Marketplace:ListingCreated" as any, async ({ event, context }) => {
 
     if (listingData) {
       try {
-        const [paymentToken, price] = decodeAbiParameters(
-          [{ type: "address" }, { type: "uint256" }],
-          listingData as Hex,
-        );
-        await db.sql
-          .update(listings)
-          .set({
-            paymentToken: (paymentToken as string)?.toLowerCase?.() ?? null,
-            priceWei: (price as bigint)?.toString?.() ?? null,
-          })
-          .where(eq(listings.id, id));
+        // Try QuantityListing 4-tuple first, then fallback to SimpleListing 2-tuple
+        let paymentTokenDecoded: string | null = null;
+        let unitPriceWei: string | null = null;
+        let initialQty: number | null = null;
+        let remainingQty: number | null = null;
+        try {
+          const [pt, unitPrice, initQ, remainQ] = decodeAbiParameters(
+            [{ type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+            listingData as Hex,
+          );
+          paymentTokenDecoded = (pt as string) || null;
+          unitPriceWei = (unitPrice as bigint)?.toString?.() ?? null;
+          initialQty = Number(initQ as bigint);
+          remainingQty = Number(remainQ as bigint);
+        } catch {
+          const [pt, price] = decodeAbiParameters(
+            [{ type: "address" }, { type: "uint256" }],
+            listingData as Hex,
+          );
+          paymentTokenDecoded = (pt as string) || null;
+          unitPriceWei = (price as bigint)?.toString?.() ?? null;
+          initialQty = null;
+          remainingQty = null;
+        }
+
+        const unlimited = initialQty === 0 ? true : (initialQty == null ? null : false);
+        await db.sql.update(listings).set({
+          paymentToken: paymentTokenDecoded?.toLowerCase?.() ?? null,
+          priceWei: unitPriceWei,
+          initialQuantity: initialQty ?? null,
+          remainingQuantity: remainingQty ?? null,
+          unlimited: unlimited as any,
+        }).where(eq(listings.id, id));
 
         // Resolve token metadata (ETH defaults; ERC-20 reads)
         try {
-          const pt = (paymentToken as string)?.toLowerCase?.() ?? "";
+          const pt = (paymentTokenDecoded as string)?.toLowerCase?.() ?? "";
           if (!pt || pt === zeroAddress) {
             await db.sql
               .update(listings)
@@ -186,7 +208,6 @@ ponder.on("Marketplace:ListingCreated" as any, async ({ event, context }) => {
         // Top-level denormalized fields for convenient querying & UI
         title: typeof json?.title === "string" ? json.title : null,
         description: typeof json?.description === "string" ? json.description : null,
-        category: typeof json?.category === "string" ? json.category : null,
         image: typeof json?.image === "string" ? json.image : null,
         contact: typeof json?.contact === "object" ? json.contact : (typeof json?.contact === "string" ? json.contact : null),
         tags: Array.isArray(json?.tags) ? json.tags : (typeof json?.tags === "string" ? json.tags : null),
@@ -224,7 +245,52 @@ ponder.on("Marketplace:ListingAction" as any, async ({ event, context }) => {
   });
 
   if (actionName === "buy") {
-    await db.sql.update(listings).set({ buyer: caller }).where(eq(listings.id, listingId));
+    // Refresh remaining quantity (best-effort) by re-reading getListing
+    let newRemaining: number | null = null;
+    let newInitial: number | null = null;
+    try {
+      const getRes = (await publicClient.readContract({
+        address: (event as any).log?.address as `0x${string}`,
+        abi: marketplaceGetListingAbi,
+        functionName: "getListing",
+        args: [BigInt(listingId)],
+      })) as unknown as any[];
+      const listingDataBytes = getRes?.[4] as Hex | undefined;
+      if (listingDataBytes) {
+        try {
+          const [/*pt*/, /*unit*/, initQ, remainQ] = decodeAbiParameters(
+            [{ type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+            listingDataBytes,
+          );
+          newInitial = Number(initQ as bigint);
+          newRemaining = Number(remainQ as bigint);
+        } catch {
+          // simple listings don't have quantity
+        }
+      }
+    } catch {}
+
+    // Compute purchased quantity = prevRemaining - newRemaining (for limited listings)
+    let purchasedQty: number | null = null;
+    try {
+      const existing = await db.find(listings, { id: listingId });
+      if (existing && typeof existing.remainingQuantity === "number" && typeof newRemaining === "number") {
+        const delta = existing.remainingQuantity - newRemaining;
+        if (delta > 0) purchasedQty = delta;
+      }
+    } catch {}
+
+    await db.sql.update(listings).set({
+      buyer: caller,
+      remainingQuantity: newRemaining ?? null,
+      initialQuantity: newInitial ?? null,
+      unlimited: (newInitial === 0) ? true : (newInitial == null ? null : false),
+    }).where(eq(listings.id, listingId));
+
+    // Update action row with derived quantity (may be null for unlimited or when undetermined)
+    await db.sql.update(listing_actions).set({
+      quantity: purchasedQty ?? null,
+    }).where(eq(listing_actions.id, `${(event as any).transaction?.hash ?? (event as any).log?.transactionHash}-${(event as any).log?.logIndex ?? 0}`));
   }
 });
 

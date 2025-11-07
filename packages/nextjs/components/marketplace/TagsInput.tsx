@@ -19,7 +19,7 @@ export const TagsInput = ({ value, onChange, placeholder, className }: TagsInput
   const commitDraftTokens = useCallback(
     (text: string) => {
       const tokens = text
-        .split(",")
+        .split(/\s+/)
         .map(t => t.trim())
         .filter(Boolean)
         .map(t => t.toLowerCase());
@@ -76,17 +76,14 @@ export const TagsInput = ({ value, onChange, placeholder, className }: TagsInput
         value={draft}
         style={{ caretColor: "var(--bc)" }}
         onChange={e => {
-          const text = e.target.value;
-          if (text.includes(",")) {
-            commitDraftTokens(text);
-            return;
-          }
-          setDraft(text);
+          setDraft(e.target.value);
         }}
         onKeyDown={e => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            commitDraftTokens(draft);
+            if (draft.trim()) {
+              commitDraftTokens(draft);
+            }
           } else if (e.key === "Backspace" && draft.length === 0 && value.length > 0) {
             e.preventDefault();
             removeTag(value[value.length - 1]);

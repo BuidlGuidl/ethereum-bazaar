@@ -270,6 +270,392 @@ const deployedContracts = {
       inheritedFunctions: {},
       deployedOnBlock: 36962390,
     },
+    QuantityListings: {
+      address: "0x36A0389a7f2c2f25627217A955247388E1a04606",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "_marketplace",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "Erc20TransferFailed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "EthSendFailed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "IncorrectEth",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InsufficientQuantity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "MarketplaceZeroAddress",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NoEthWithErc20",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotActive",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotCreator",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotMarketplace",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotSelf",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "QuantityZero",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "UnknownAction",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+          ],
+          name: "QuantityListingClosed",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "paymentToken",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "pricePerUnit",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "initialQuantity",
+              type: "uint256",
+            },
+          ],
+          name: "QuantityListingCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "buyer",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "unitPrice",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "quantity",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "totalPrice",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "paymentToken",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "remainingQuantity",
+              type: "uint256",
+            },
+          ],
+          name: "QuantityListingSold",
+          type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "buyer",
+              type: "address",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "buy",
+          outputs: [],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+            {
+              internalType: "bytes",
+              name: "",
+              type: "bytes",
+            },
+          ],
+          name: "close",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "create",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "success",
+              type: "bool",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+          ],
+          name: "getListing",
+          outputs: [
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+            {
+              internalType: "bytes32",
+              name: "action",
+              type: "bytes32",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "handleAction",
+          outputs: [],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          name: "listings",
+          outputs: [
+            {
+              internalType: "address",
+              name: "paymentToken",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "pricePerUnit",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "initialQuantity",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "remainingQuantity",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "marketplace",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {
+        create: "contracts/IListingType.sol",
+        getListing: "contracts/IListingType.sol",
+        handleAction: "contracts/IListingType.sol",
+      },
+      deployedOnBlock: 37874172,
+    },
     SimpleListings: {
       address: "0x0fe4e093e587c33036c9e203CF6328B61844812d",
       abi: [
@@ -1801,7 +2187,7 @@ const deployedContracts = {
       deployedOnBlock: 11,
     },
     Marketplace: {
-      address: "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
+      address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       abi: [
         {
           inputs: [],
@@ -2062,7 +2448,393 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 17,
+      deployedOnBlock: 1,
+    },
+    QuantityListings: {
+      address: "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "_marketplace",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "Erc20TransferFailed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "EthSendFailed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "IncorrectEth",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InsufficientQuantity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "MarketplaceZeroAddress",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NoEthWithErc20",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotActive",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotCreator",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotMarketplace",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotSelf",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "QuantityZero",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "UnknownAction",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+          ],
+          name: "QuantityListingClosed",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "paymentToken",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "pricePerUnit",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "initialQuantity",
+              type: "uint256",
+            },
+          ],
+          name: "QuantityListingCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "buyer",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "unitPrice",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "quantity",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "totalPrice",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "paymentToken",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "remainingQuantity",
+              type: "uint256",
+            },
+          ],
+          name: "QuantityListingSold",
+          type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "buyer",
+              type: "address",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "buy",
+          outputs: [],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+            {
+              internalType: "bytes",
+              name: "",
+              type: "bytes",
+            },
+          ],
+          name: "close",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "create",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "success",
+              type: "bool",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+          ],
+          name: "getListing",
+          outputs: [
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "listingId",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "creator",
+              type: "address",
+            },
+            {
+              internalType: "bool",
+              name: "active",
+              type: "bool",
+            },
+            {
+              internalType: "address",
+              name: "caller",
+              type: "address",
+            },
+            {
+              internalType: "bytes32",
+              name: "action",
+              type: "bytes32",
+            },
+            {
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "handleAction",
+          outputs: [],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          name: "listings",
+          outputs: [
+            {
+              internalType: "address",
+              name: "paymentToken",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "pricePerUnit",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "initialQuantity",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "remainingQuantity",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "marketplace",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {
+        create: "contracts/IListingType.sol",
+        getListing: "contracts/IListingType.sol",
+        handleAction: "contracts/IListingType.sol",
+      },
+      deployedOnBlock: 14,
     },
     SchemaRegistry: {
       address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
@@ -2212,7 +2984,7 @@ const deployedContracts = {
       deployedOnBlock: 9,
     },
     SimpleListings: {
-      address: "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
+      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
       abi: [
         {
           inputs: [
@@ -2556,7 +3328,7 @@ const deployedContracts = {
         getListing: "contracts/IListingType.sol",
         handleAction: "contracts/IListingType.sol",
       },
-      deployedOnBlock: 19,
+      deployedOnBlock: 3,
     },
     TestERC20_2dec: {
       address: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
