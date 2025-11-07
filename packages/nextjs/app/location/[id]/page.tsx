@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ListingCard } from "~~/components/marketplace/ListingCard";
+import MapRadius from "~~/components/marketplace/MapRadiusGL";
 
 const LocationPage = () => {
   const params = useParams<{ id: string }>();
@@ -63,6 +64,11 @@ const LocationPage = () => {
               savedAt: Date.now(),
             };
             localStorage.setItem("marketplace.defaultLocationData", JSON.stringify(data));
+            // Mirror to cookie for server-side redirects (middleware)
+            try {
+              document.cookie =
+                "last_location_id=" + encodeURIComponent(String(decoded)) + "; Max-Age=15552000; Path=/; SameSite=Lax";
+            } catch {}
             if (!cachedName && data.name) setCachedName(data.name);
           }
         } catch {}
@@ -78,6 +84,10 @@ const LocationPage = () => {
               }
             } catch {}
           }
+          // Clear cookie if the stored id is invalid
+          try {
+            document.cookie = "last_location_id=; Max-Age=0; Path=/; SameSite=Lax";
+          } catch {}
         } catch {}
         // redirect to home if this location no longer exists
         window.location.href = "/?home=1";
@@ -221,11 +231,18 @@ const LocationPage = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="mx-auto max-w-6xl flex items-center">
-        <h1 className="text-2xl mb-0 font-semibold">{location?.name || cachedName || ""}</h1>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h1 className="text-2xl mb-0 font-semibold leading-tight">{location?.name || cachedName || ""}</h1>
+        <label
+          htmlFor="location-details-modal"
+          className="btn btn-secondary btn-sm ml-auto translate-y-[2px]"
+          aria-label="View location details"
+        >
+          Map
+        </label>
       </div>
 
-      <div className="mx-auto max-w-6xl">
+      <div>
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -233,7 +250,7 @@ const LocationPage = () => {
           className="input input-bordered w-full"
         />
       </div>
-      <div className="mx-auto max-w-6xl flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <details className="dropdown">
           <summary className="btn btn-sm relative">
             Filters
@@ -289,7 +306,7 @@ const LocationPage = () => {
         </Link>
       </div>
       {loadingListings ? (
-        <div className="mx-auto max-w-6xl flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-8">
           <span className="loading loading-spinner loading-md" />
           <span className="ml-2 opacity-70">Loading listings…</span>
         </div>
@@ -298,7 +315,7 @@ const LocationPage = () => {
           <p className="opacity-70">No listings yet.</p>
         </div>
       ) : (
-        <div className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map(item => (
             <ListingCard
               key={item.id}
@@ -313,6 +330,46 @@ const LocationPage = () => {
           ))}
         </div>
       )}
+      {/* Location Details Modal */}
+      <div>
+        <input type="checkbox" id="location-details-modal" className="modal-toggle" />
+        <label htmlFor="location-details-modal" className="modal cursor-pointer">
+          <label className="modal-box relative max-w-3xl max-h-[90vh] overflow-y-auto">
+            <input className="h-0 w-0 absolute top-0 left-0" />
+            <label htmlFor="location-details-modal" className="btn btn-ghost btn-sm btn-circle absolute right-3 top-3">
+              ✕
+            </label>
+            <div className="space-y-3">
+              <div className="text-lg font-semibold break-words">{location?.name || cachedName || "Location"}</div>
+              <div className="rounded-xl overflow-hidden border bg-base-100">
+                {location?.lat != null && location?.lng != null && location?.radiusMiles != null ? (
+                  <MapRadius
+                    lat={Number(location.lat)}
+                    lng={Number(location.lng)}
+                    radiusMiles={Number(location.radiusMiles)}
+                    onMove={() => {}}
+                  />
+                ) : (
+                  <div className="p-4 text-sm opacity-70">No map preview available for this location.</div>
+                )}
+              </div>
+              {location && (
+                <div className="space-y-2">
+                  {Array.isArray(location.akas) && location.akas.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {location.akas.map((aka: string, idx: number) => (
+                        <span key={idx} className="badge badge-outline max-w-[12rem]" title={aka}>
+                          <span className="block max-w-full truncate text-left">{aka}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </label>
+        </label>
+      </div>
     </div>
   );
 };

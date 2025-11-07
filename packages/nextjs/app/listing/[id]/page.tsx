@@ -255,6 +255,12 @@ const ListingDetailsPageInner = () => {
     if (typeof (indexed as any)?.initialQuantity === "number") return (indexed as any).initialQuantity > 0;
     return false;
   }, [data?.decoded?.initialQuantity, indexed]);
+  const unlimited = useMemo(() => {
+    const init = data?.decoded?.initialQuantity as bigint | undefined;
+    if (typeof init === "bigint") return init === 0n;
+    if (typeof (indexed as any)?.unlimited === "boolean") return Boolean((indexed as any).unlimited);
+    return false;
+  }, [data?.decoded?.initialQuantity, indexed]);
   const remaining = useMemo(() => {
     const rem = data?.decoded?.remainingQuantity as bigint | undefined;
     if (typeof rem === "bigint") return Number(rem);
@@ -263,10 +269,30 @@ const ListingDetailsPageInner = () => {
   }, [data?.decoded?.remainingQuantity, indexed]);
   const [quantity, setQuantity] = useState<number>(1);
   useEffect(() => {
-    if (!limited) return;
-    const max = typeof remaining === "number" ? remaining : 1;
-    if (quantity > max) setQuantity(Math.max(1, max));
+    if (!limited || typeof remaining !== "number") return;
+    const max = remaining;
+    if (quantity > max) setQuantity(max > 0 ? max : 1);
   }, [limited, remaining, quantity]);
+
+  const supportsQuantity = useMemo(
+    () => unlimited || (limited && typeof remaining === "number"),
+    [unlimited, limited, remaining],
+  );
+  useEffect(() => {
+    if (!supportsQuantity) {
+      setQuantity(1);
+    }
+  }, [supportsQuantity]);
+
+  // Disable buying and quantity input when listing is inactive or sold out
+  const buyDisabled = useMemo(
+    () => !active || (limited && typeof remaining === "number" && remaining < 1),
+    [active, limited, remaining],
+  );
+  const maxQuantity = useMemo(
+    () => (limited && typeof remaining === "number" ? remaining : undefined),
+    [limited, remaining],
+  );
 
   const postedAgo = useMemo(() => {
     const ts = indexed?.createdBlockTimestamp ? Number(indexed.createdBlockTimestamp) : undefined;
@@ -420,20 +446,21 @@ const ListingDetailsPageInner = () => {
               <div className="badge badge-outline">{remaining} left</div>
             ) : null}
             <div className="text-xl font-semibold">{priceLabel}</div>
-            {limited || true ? (
+            {supportsQuantity ? (
               <div className="flex items-center gap-1">
                 <span className="opacity-70">x</span>
                 <input
                   className="input input-bordered input-sm w-16 text-center"
                   type="number"
                   min={1}
-                  max={limited && typeof remaining === "number" ? Math.max(1, remaining) : undefined}
+                  max={maxQuantity}
                   value={quantity}
+                  disabled={buyDisabled || (typeof maxQuantity === "number" && maxQuantity < 1)}
                   onFocus={e => (e.target as HTMLInputElement).select()}
                   onClick={e => (e.currentTarget as HTMLInputElement).select()}
                   onChange={e => {
                     const v = Math.max(1, Number(e.target.value || "1"));
-                    setQuantity(limited && typeof remaining === "number" ? Math.min(v, remaining) : v);
+                    setQuantity(typeof maxQuantity === "number" ? Math.min(v, maxQuantity) : v);
                   }}
                 />
               </div>
@@ -446,7 +473,7 @@ const ListingDetailsPageInner = () => {
                 paymentToken={payToken}
                 listingTypeAddress={payListingTypeAddress}
                 quantity={quantity}
-                disabled={!active}
+                disabled={buyDisabled}
               />
             ) : null}
           </div>
