@@ -485,6 +485,8 @@ const NewListingPageInner = () => {
               type="number"
               min={1}
               value={initialQuantity}
+              onFocus={e => (e.target as HTMLInputElement).select()}
+              onClick={e => (e.currentTarget as HTMLInputElement).select()}
               onChange={e => setInitialQuantity(e.target.value)}
             />
           ) : null}
