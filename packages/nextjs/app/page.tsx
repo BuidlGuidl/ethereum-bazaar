@@ -5,7 +5,6 @@ import { Cormorant_Garamond } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import MapRadius from "~~/components/marketplace/MapRadiusGL";
 
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"] });
 
@@ -15,8 +14,6 @@ const HomeInner = () => {
 
   const [query, setQuery] = useState("");
   const [locations, setLocations] = useState<any[]>([]);
-  const [selected, setSelected] = useState<any | null>(null);
-  const [loadingSelected, setLoadingSelected] = useState(false);
   const [loadingLocations, setLoadingLocations] = useState(true);
 
   useEffect(() => {
@@ -58,24 +55,8 @@ const HomeInner = () => {
         } catch {}
         const id = parsed?.id as string | undefined;
         if (id) {
-          // verify the location still exists before redirecting
-          fetch(`/api/locations/${id}`)
-            .then(async res => {
-              if (res.ok) {
-                router.replace(`/location/${id}`);
-              } else {
-                try {
-                  localStorage.removeItem("marketplace.defaultLocationData");
-                } catch {}
-                router.replace(`/?home=1`);
-              }
-            })
-            .catch(() => {
-              try {
-                localStorage.removeItem("marketplace.defaultLocationData");
-              } catch {}
-              router.replace(`/?home=1`);
-            });
+          // Navigate immediately; the location page will validate and handle 404s/cleanup.
+          router.replace(`/location/${encodeURIComponent(id)}`);
         }
       }
     } catch {}
@@ -83,8 +64,8 @@ const HomeInner = () => {
 
   return (
     <>
-      <div className="flex items-center flex-col grow pt-2">
-        <div className="px-5 w-full max-w-5xl">
+      <div className="flex items-center justify-between gap-2 pt-2">
+        <div className="px-5 w-full">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="lg:hidden flex items-center gap-2">
@@ -132,22 +113,27 @@ const HomeInner = () => {
                   <button
                     key={l.id}
                     className="card bg-base-100 border border-base-300 hover:border-primary/60 transition-colors text-left cursor-pointer"
-                    onClick={async () => {
-                      setSelected(null);
-                      setLoadingSelected(true);
+                    onClick={() => {
+                      // Set as preferred location immediately, then navigate
                       try {
-                        const res = await fetch(`/api/locations/${encodeURIComponent(l.id)}`);
-                        if (res.ok) {
-                          const json = await res.json();
-                          setSelected(json.location || l);
-                        } else {
-                          setSelected(l);
-                        }
-                      } finally {
-                        setLoadingSelected(false);
-                        const checkbox = document.getElementById("location-preview-modal") as HTMLInputElement | null;
-                        if (checkbox) checkbox.checked = true;
-                      }
+                        const data = {
+                          id: String(l.id),
+                          name: l?.name ?? null,
+                          lat: l?.lat ?? null,
+                          lng: l?.lng ?? null,
+                          radiusMiles: l?.radiusMiles ?? null,
+                          savedAt: Date.now(),
+                        };
+                        localStorage.setItem("marketplace.defaultLocationData", JSON.stringify(data));
+                        // Mirror to cookie for server-side redirects (middleware)
+                        try {
+                          document.cookie =
+                            "last_location_id=" +
+                            encodeURIComponent(String(l.id)) +
+                            "; Max-Age=15552000; Path=/; SameSite=Lax";
+                        } catch {}
+                      } catch {}
+                      router.push(`/location/${encodeURIComponent(l.id)}`);
                     }}
                   >
                     <div className="card-body p-3">
@@ -161,74 +147,6 @@ const HomeInner = () => {
           </div>
         </div>
       </div>
-
-      {/* Location Preview Modal */}
-      <div>
-        <input type="checkbox" id="location-preview-modal" className="modal-toggle" />
-        <label htmlFor="location-preview-modal" className="modal cursor-pointer">
-          <label className="modal-box relative max-w-3xl max-h-[90vh] overflow-y-auto">
-            <input className="h-0 w-0 absolute top-0 left-0" />
-            <label htmlFor="location-preview-modal" className="btn btn-ghost btn-sm btn-circle absolute right-3 top-3">
-              ✕
-            </label>
-            <div className="space-y-3">
-              <div className="text-lg font-semibold">{selected?.name || selected?.id || "Location"}</div>
-              <div className="rounded-xl overflow-hidden border bg-base-100">
-                {loadingSelected ? (
-                  <div className="p-4 text-sm opacity-70">Loading…</div>
-                ) : selected?.lat != null && selected?.lng != null && selected?.radiusMiles != null ? (
-                  <MapRadius
-                    lat={Number(selected.lat)}
-                    lng={Number(selected.lng)}
-                    radiusMiles={Number(selected.radiusMiles)}
-                    onMove={() => {}}
-                  />
-                ) : (
-                  <div className="p-4 text-sm opacity-70">No map preview available for this location.</div>
-                )}
-              </div>
-              {/* Additional location details */}
-              {selected && (
-                <div className="space-y-2">
-                  {Array.isArray(selected.akas) && selected.akas.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {selected.akas.map((aka: string, idx: number) => (
-                        <span key={idx} className="badge badge-outline">
-                          {aka}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <button
-                className="btn btn-primary w-full"
-                onClick={() => {
-                  try {
-                    if (selected?.id) {
-                      const data = {
-                        id: String(selected.id),
-                        name: selected?.name ?? null,
-                        lat: selected?.lat ?? null,
-                        lng: selected?.lng ?? null,
-                        radiusMiles: selected?.radiusMiles ?? null,
-                        savedAt: Date.now(),
-                      };
-                      localStorage.setItem("marketplace.defaultLocationData", JSON.stringify(data));
-                    }
-                  } catch {}
-                  const checkbox = document.getElementById("location-preview-modal") as HTMLInputElement | null;
-                  if (checkbox) checkbox.checked = false;
-                  router.push(`/location/${String(selected?.id || "")}`);
-                }}
-                disabled={!selected}
-              >
-                Select this location
-              </button>
-            </div>
-          </label>
-        </label>
-      </div>
     </>
   );
 };
@@ -236,6 +154,12 @@ const HomeInner = () => {
 export default function Home() {
   return (
     <Suspense fallback={null}>
+      {/* Early redirect before hydration using localStorage (no data fetch) */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{var params=new URLSearchParams(window.location.search);if(params.get('home')==='1')return;var raw=localStorage.getItem('marketplace.defaultLocationData');if(!raw)return;var parsed;try{parsed=JSON.parse(raw)}catch(e){parsed=null}var id=parsed&&parsed.id;if(id){window.location.replace('/location/'+encodeURIComponent(id))}}catch(e){}})();`,
+        }}
+      />
       <HomeInner />
     </Suspense>
   );
