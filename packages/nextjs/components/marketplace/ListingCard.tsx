@@ -91,8 +91,12 @@ export const ListingCard = ({
   }, [listingDataBytes, priceWeiProp, tokenDecimalsProp, tokenSymbolProp]);
   let priceLabel = "";
   try {
-    const amount = formatUnits(priceWei as bigint, tokenDecimals as number);
-    priceLabel = `${amount} ${tokenSymbol}`;
+    if ((priceWei as bigint) === 0n) {
+      priceLabel = "FREE";
+    } else {
+      const amount = formatUnits(priceWei as bigint, tokenDecimals as number);
+      priceLabel = `${amount} ${tokenSymbol}`;
+    }
   } catch {
     priceLabel = "";
   }

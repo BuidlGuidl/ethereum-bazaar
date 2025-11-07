@@ -2,6 +2,51 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 describe("Marketplace + QuantityListings", function () {
+  it("creates and buys free (ETH) listing with zero price", async function () {
+    const [, buyer] = await ethers.getSigners();
+
+    const Marketplace = await ethers.getContractFactory("Marketplace");
+    const marketplace = await Marketplace.deploy();
+    await marketplace.waitForDeployment();
+
+    const QuantityListings = await ethers.getContractFactory("QuantityListings");
+    const ql = await QuantityListings.deploy(await marketplace.getAddress());
+    await ql.waitForDeployment();
+
+    // price = 0, unlimited quantity
+    const data = ethers.AbiCoder.defaultAbiCoder().encode(
+      ["address", "uint256", "uint256"],
+      [ethers.ZeroAddress, 0n, 0],
+    );
+
+    const tx = await marketplace.createListing(await ql.getAddress(), "ipfs://FREE", data);
+    const receipt = await tx.wait();
+    const event = receipt!.logs.find(l => (l as any).fragment?.name === "ListingCreated") as any;
+    const id = (event?.args?.id ?? 0n) as bigint;
+
+    const qty = 2n;
+    const buyHash = ethers.id("buy(uint256,address,bool,address,bytes)");
+    const buySelector = ("0x" + buyHash.slice(2, 10)) as `0x${string}`;
+    const buyAction = (buySelector + "0".repeat(64 - 8)) as `0x${string}`;
+    const encodedQty = ethers.AbiCoder.defaultAbiCoder().encode(["uint256"], [qty]);
+
+    // Should succeed with zero value since price is 0
+    await expect(marketplace.connect(buyer).callAction(id, buyAction, encodedQty, { value: 0n })).to.emit(
+      marketplace,
+      "ListingAction",
+    );
+
+    // Verify listing data still unlimited (remainingQuantity == 0)
+    const res = await marketplace.getListing(id);
+    const listingData: string = (res as any)[4];
+    const [, , initialQty, remainingQty] = ethers.AbiCoder.defaultAbiCoder().decode(
+      ["address", "uint256", "uint256", "uint256"],
+      listingData,
+    );
+    expect(initialQty).to.equal(0n);
+    expect(remainingQty).to.equal(0n);
+  });
+
   it("creates and buys unlimited quantity (ETH) with multi-qty", async function () {
     const [, buyer] = await ethers.getSigners();
 

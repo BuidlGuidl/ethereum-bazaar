@@ -14,7 +14,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *         - buy(...) accepts optional bytes data with abi.encode(uint256 quantity). If omitted or zero, defaults to 1
  */
 contract QuantityListings is IListingType {
-    error PriceZero();
     error NotActive();
     error IncorrectEth();
     error NoEthWithErc20();
@@ -87,7 +86,6 @@ contract QuantityListings is IListingType {
     function create(address creator, uint256 listingId, bytes calldata data) external onlyMarketplace returns (bool success) {
         (address paymentToken, uint256 pricePerUnit, uint256 initialQuantity) =
             abi.decode(data, (address, uint256, uint256));
-        if (pricePerUnit == 0) revert PriceZero();
         // remainingQuantity mirrors initialQuantity unless unlimited (0)
         listings[listingId] = QuantityListing({
             paymentToken: paymentToken,

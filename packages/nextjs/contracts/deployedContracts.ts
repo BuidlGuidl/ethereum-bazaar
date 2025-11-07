@@ -271,7 +271,7 @@ const deployedContracts = {
       deployedOnBlock: 36962390,
     },
     QuantityListings: {
-      address: "0x70052324ac3f8965572Ae7a3862300753700718d",
+      address: "0x36A0389a7f2c2f25627217A955247388E1a04606",
       abi: [
         {
           inputs: [
@@ -332,11 +332,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "NotSelf",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "PriceZero",
           type: "error",
         },
         {
@@ -659,7 +654,7 @@ const deployedContracts = {
         getListing: "contracts/IListingType.sol",
         handleAction: "contracts/IListingType.sol",
       },
-      deployedOnBlock: 37868751,
+      deployedOnBlock: 37874172,
     },
     SimpleListings: {
       address: "0x0fe4e093e587c33036c9e203CF6328B61844812d",
@@ -2517,11 +2512,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "NotSelf",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "PriceZero",
           type: "error",
         },
         {

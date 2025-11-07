@@ -171,10 +171,10 @@ const NewListingPageInner = () => {
       if (isCustomToken || isKnownToken) {
         if (decimalsOverride === null) return false;
         const v = parseUnits(trimmed, (decimalsOverride ?? 18) as number);
-        return v > 0n;
+        return v >= 0n;
       }
       const v = parseEther(trimmed);
-      return v > 0n;
+      return v >= 0n;
     } catch {
       return false;
     }

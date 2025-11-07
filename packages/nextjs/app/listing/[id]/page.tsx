@@ -221,12 +221,14 @@ const ListingDetailsPageInner = () => {
         const wei = BigInt(indexed.priceWei as string);
         const decimals = typeof indexed.tokenDecimals === "number" ? indexed.tokenDecimals : 18;
         const symbol = indexed?.tokenSymbol || "ETH";
+        if (wei === 0n) return "FREE";
         const amount = formatUnits(wei, decimals);
         return `${amount} ${symbol}`;
       }
       // Fallback to on-chain decoded price (assumed ETH)
       if (data?.decoded?.price != null) {
         const wei = data.decoded.price as bigint;
+        if (wei === 0n) return "FREE";
         const amount = formatUnits(wei, 18);
         return `${amount} ETH`;
       }
@@ -431,6 +433,8 @@ const ListingDetailsPageInner = () => {
                   min={1}
                   max={limited && typeof remaining === "number" ? Math.max(1, remaining) : undefined}
                   value={quantity}
+                  onFocus={e => (e.target as HTMLInputElement).select()}
+                  onClick={e => (e.currentTarget as HTMLInputElement).select()}
                   onChange={e => {
                     const v = Math.max(1, Number(e.target.value || "1"));
                     setQuantity(limited && typeof remaining === "number" ? Math.min(v, remaining) : v);
