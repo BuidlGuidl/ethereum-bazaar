@@ -12,9 +12,17 @@ export interface PayButtonProps {
   paymentToken?: string; // zero address for ETH; otherwise ERC20
   disabled?: boolean;
   listingTypeAddress?: string; // spender/listing type contract address passed from parent
+  quantity?: number; // number of units to purchase (defaults to 1)
 }
 
-export const PayButton = ({ listingId, priceWei, paymentToken, disabled, listingTypeAddress }: PayButtonProps) => {
+export const PayButton = ({
+  listingId,
+  priceWei,
+  paymentToken,
+  disabled,
+  listingTypeAddress,
+  quantity = 1,
+}: PayButtonProps) => {
   const { writeContractAsync, isMining } = useScaffoldWriteContract({ contractName: "Marketplace" });
   const { address } = useAccount();
   const router = useRouter();
@@ -93,12 +101,20 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled, listing
     const sigHash = keccak256(stringToHex("buy(uint256,address,bool,address,bytes)"));
     const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
     const action = (selector + "0".repeat(64 - 8)) as `0x${string}`; // left-pad selector (4 bytes) to 32 bytes
+    const qty = BigInt(Math.max(1, quantity || 1));
+    const data =
+      qty === 1n
+        ? ("0x" as `0x${string}`) // rely on defaulting to 1 in contract when no data
+        : (("0x" +
+            // viem encode for single uint256 (manual minimal encoding to avoid importing in this small file)
+            // However, safer to just build ABI-encoded via 32-byte hex: left-padded
+            qty.toString(16).padStart(64, "0")) as `0x${string}`);
     await writeContractAsync({
       functionName: "callAction",
-      args: [idBig, action, "0x"],
-      value: isEth && priceWei ? BigInt(priceWei) : undefined,
+      args: [idBig, action, data],
+      value: isEth && priceWei ? BigInt(priceWei) * BigInt(Math.max(1, quantity || 1)) : undefined,
     });
-  }, [writeContractAsync, idBig, isEth, priceWei]);
+  }, [writeContractAsync, idBig, isEth, priceWei, quantity]);
 
   const onBuy = useCallback(async () => {
     try {
@@ -107,7 +123,8 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled, listing
         return;
       }
       if (isErc20) {
-        const needed = priceWei ? BigInt(priceWei) : 0n;
+        const unit = priceWei ? BigInt(priceWei) : 0n;
+        const needed = unit * BigInt(Math.max(1, quantity || 1));
         const current = (allowanceData as bigint | undefined) ?? 0n;
         if (current < needed) {
           const hash = await writeTokenAsync({
@@ -138,6 +155,7 @@ export const PayButton = ({ listingId, priceWei, paymentToken, disabled, listing
     erc20Abi,
     spenderAddress,
     publicClient,
+    quantity,
   ]);
 
   return (

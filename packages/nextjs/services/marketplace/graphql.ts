@@ -13,6 +13,9 @@ export interface ListingData {
   locationId: string;
   paymentToken: string | null;
   tokenDecimals: number | null;
+  initialQuantity?: number | null;
+  remainingQuantity?: number | null;
+  unlimited?: boolean | null;
 }
 
 export async function fetchListingById(id: string): Promise<ListingData | null> {
@@ -35,6 +38,9 @@ export async function fetchListingById(id: string): Promise<ListingData | null> 
             locationId
             paymentToken
             tokenDecimals
+            initialQuantity
+            remainingQuantity
+            unlimited
           }
         }
       `,

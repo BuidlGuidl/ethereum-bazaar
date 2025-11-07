@@ -108,12 +108,14 @@ const NewListingPageInner = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   const { writeContractAsync: writeMarketplace } = useScaffoldWriteContract({ contractName: "Marketplace" });
-  const { data: simpleListings } = useDeployedContractInfo({ contractName: "SimpleListings" });
+  const { data: quantityListings } = useDeployedContractInfo("QuantityListings" as any);
   const { data: marketplaceInfo } = useDeployedContractInfo({ contractName: "Marketplace" });
 
   const isCustomToken = currency === "TOKEN";
   const isKnownToken = currency !== "ETH" && currency !== "TOKEN" && Boolean(KNOWN_TOKENS[currency]);
   const isTokenAddressValid = useMemo(() => isAddress(tokenAddress || "0x"), [tokenAddress]);
+  const [unlimitedQuantity, setUnlimitedQuantity] = useState(true);
+  const [initialQuantity, setInitialQuantity] = useState<string>("1");
 
   const { data: tokenDecimalsData, isFetching: loadingDecimals } = useReadContract({
     address:
@@ -242,7 +244,7 @@ const NewListingPageInner = () => {
     };
   };
 
-  const encodePaymentData = () => {
+  const encodeCreationData = () => {
     const paymentToken: `0x${string}` = isCustomToken
       ? (tokenAddress as `0x${string}`)
       : isKnownToken
@@ -251,13 +253,15 @@ const NewListingPageInner = () => {
     const priceWei = !(isCustomToken || isKnownToken)
       ? parseEther(price || "0")
       : parseUnits(price || "0", decimalsOverride ?? 18);
+    const qty = unlimitedQuantity ? 0n : BigInt(Math.max(1, Number(initialQuantity || "1")));
 
     return encodeAbiParameters(
       [
         { name: "paymentToken", type: "address" },
-        { name: "price", type: "uint256" },
+        { name: "pricePerUnit", type: "uint256" },
+        { name: "initialQuantity", type: "uint256" },
       ],
-      [paymentToken, priceWei],
+      [paymentToken, priceWei, qty],
     );
   };
 
@@ -312,12 +316,12 @@ const NewListingPageInner = () => {
 
       const metadata = buildMetadata(finalImageCid);
       const cid = await uploadJSON(metadata);
-      const encoded = encodePaymentData();
+      const encoded = encodeCreationData();
 
       await writeMarketplace(
         {
           functionName: "createListing",
-          args: [simpleListings?.address as `0x${string}`, cid, encoded],
+          args: [quantityListings?.address as `0x${string}`, cid, encoded],
         },
         {
           blockConfirmations: 1,
@@ -330,6 +334,40 @@ const NewListingPageInner = () => {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onCloseOnly = async () => {
+    if (!editingId) return;
+    setSubmitting(true);
+    try {
+      const sigHash = keccak256(stringToHex("close(uint256,address,bool,address,bytes)"));
+      const selector = `0x${sigHash.slice(2, 10)}` as `0x${string}`;
+      const action = (selector + "0".repeat(64 - 8)) as `0x${string}`;
+      await writeMarketplace({ functionName: "callAction", args: [BigInt(editingId), action, "0x"] });
+      if (locationId) {
+        router.push(`/location/${encodeURIComponent(locationId)}`);
+      } else {
+        router.push("/");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onExitWithoutSaving = () => {
+    try {
+      if (locationId) {
+        router.push(`/location/${encodeURIComponent(locationId)}`);
+        return;
+      }
+      if (editingId) {
+        router.push(`/listing/${encodeURIComponent(editingId)}`);
+        return;
+      }
+      router.back();
+    } catch {
+      router.push("/");
     }
   };
 
@@ -357,6 +395,19 @@ const NewListingPageInner = () => {
         }
 
         setContacts(parseContactEntries(item.contact));
+
+        // Populate quantity fields from existing listing (prefer remaining over initial)
+        try {
+          const unlimitedFromItem = item.unlimited === true || item.initialQuantity === 0;
+          setUnlimitedQuantity(unlimitedFromItem);
+          if (!unlimitedFromItem) {
+            const remaining = item.remainingQuantity;
+            const initial = item.initialQuantity;
+            const qtyNum =
+              typeof remaining === "number" && remaining > 0 ? remaining : typeof initial === "number" ? initial : 1;
+            setInitialQuantity(String(Math.max(1, qtyNum)));
+          }
+        } catch {}
       } catch {}
     };
 
@@ -396,7 +447,14 @@ const NewListingPageInner = () => {
         className={`p-4 space-y-3 ${submitting ? "opacity-60 pointer-events-none" : ""}`}
         onSubmit={onSubmit}
       >
-        <h1 className="text-2xl font-semibold">{editingId ? "Edit" : "Create Listing"}</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">{editingId ? "Edit" : "Create Listing"}</h1>
+          {editingId ? (
+            <button type="button" className="btn btn-error btn-sm" onClick={onCloseOnly} disabled={submitting}>
+              {submitting ? "Deleting..." : "Delete listing"}
+            </button>
+          ) : null}
+        </div>
         <input
           className="input input-bordered w-full"
           placeholder="Title"
@@ -450,28 +508,52 @@ const NewListingPageInner = () => {
           <label className="text-sm opacity-80">Tags (commas separated)</label>
           <TagsInput value={tags} onChange={setTags} placeholder="e.g. iphone, mint, boxed" />
         </div>
-        <div className="flex gap-2 items-center">
-          <input
-            className="input input-bordered basis-2/3 min-w-0"
-            placeholder="Price"
-            value={price}
-            onChange={e => setPrice(e.target.value)}
-          />
-          <select
-            className="select select-bordered basis-1/3 min-w-0"
-            value={currency}
-            onChange={e => setCurrency(e.target.value)}
-          >
-            <option value="ETH">ETH</option>
-            {Object.keys(KNOWN_TOKENS)
-              .sort()
-              .map(sym => (
-                <option key={sym} value={sym}>
-                  {sym}
-                </option>
-              ))}
-            <option value="TOKEN">Custom token</option>
-          </select>
+        <div className="flex items-center gap-3">
+          <label className="label cursor-pointer justify-start gap-2 m-0 p-0">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm"
+              checked={unlimitedQuantity}
+              onChange={e => setUnlimitedQuantity(e.target.checked)}
+            />
+            <span className="label-text">Unlimited quantity</span>
+          </label>
+          {!unlimitedQuantity ? (
+            <input
+              className="input input-bordered input-sm w-28"
+              placeholder="Quantity"
+              type="number"
+              min={1}
+              value={initialQuantity}
+              onChange={e => setInitialQuantity(e.target.value)}
+            />
+          ) : null}
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm opacity-80 block">Price</label>
+          <div className="flex gap-2 items-center">
+            <input
+              className="input input-bordered basis-2/3 min-w-0"
+              placeholder="Price"
+              value={price}
+              onChange={e => setPrice(e.target.value)}
+            />
+            <select
+              className="select select-bordered basis-1/3 min-w-0"
+              value={currency}
+              onChange={e => setCurrency(e.target.value)}
+            >
+              <option value="ETH">ETH</option>
+              {Object.keys(KNOWN_TOKENS)
+                .sort()
+                .map(sym => (
+                  <option key={sym} value={sym}>
+                    {sym}
+                  </option>
+                ))}
+              <option value="TOKEN">Custom token</option>
+            </select>
+          </div>
         </div>
         {isCustomToken ? (
           <div className="space-y-1">
@@ -555,9 +637,20 @@ const NewListingPageInner = () => {
           </button>
         </div>
         <IPFSUploader onSelected={setSelectedImage} />
-        <button className="btn btn-primary w-full" disabled={submitting || !canSubmit}>
-          {editingId ? (submitting ? "Saving..." : "Save Changes") : submitting ? "Creating..." : "Create"}
-        </button>
+        {editingId ? (
+          <div className="flex gap-2 w-full">
+            <button className="btn btn-ghost flex-1" type="button" onClick={onExitWithoutSaving} disabled={submitting}>
+              Exit without saving
+            </button>
+            <button className="btn btn-primary flex-1" disabled={submitting || !canSubmit}>
+              {submitting ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        ) : (
+          <button className="btn btn-primary w-full" disabled={submitting || !canSubmit}>
+            {submitting ? "Creating..." : "Create"}
+          </button>
+        )}
       </form>
     </>
   );

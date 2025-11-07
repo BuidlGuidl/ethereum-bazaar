@@ -30,34 +30,63 @@ export const ListingCard = ({
     contractName: "Marketplace",
     functionName: "getListing",
     args: [idBig],
-    watch: false,
+    watch: true,
   } as any);
   const listingDataBytes = useMemo(() => (listingRes ? (listingRes as any)[1] : undefined), [listingRes]);
-  const { priceWei, tokenSymbol, tokenDecimals } = useMemo(() => {
+  const { priceWei, tokenSymbol, tokenDecimals, remainingQuantity, limited } = useMemo(() => {
     // Prefer indexer-provided values when available
     if (priceWeiProp != null && tokenSymbolProp) {
       try {
         const parsedWei = typeof priceWeiProp === "bigint" ? priceWeiProp : BigInt(priceWeiProp);
         const decimals = typeof tokenDecimalsProp === "number" && tokenDecimalsProp > 0 ? tokenDecimalsProp : 18;
-        return { priceWei: parsedWei, tokenSymbol: tokenSymbolProp, tokenDecimals: decimals } as const;
+        return {
+          priceWei: parsedWei,
+          tokenSymbol: tokenSymbolProp,
+          tokenDecimals: decimals,
+          remainingQuantity: undefined,
+          limited: false,
+        } as const;
       } catch {
         // fall through to on-chain decode
       }
     }
     try {
       if (!listingDataBytes) return { priceWei: 0n, tokenSymbol: "ETH", tokenDecimals: 18 } as const;
-      const [paymentToken, price] = decodeAbiParameters(
-        [{ type: "address" }, { type: "uint256" }],
-        listingDataBytes as Hex,
-      );
-      const isEth = String(paymentToken).toLowerCase() === zeroAddress;
-      return {
-        priceWei: price as bigint,
-        tokenSymbol: isEth ? "ETH" : tokenSymbolProp || "TOKEN",
-        tokenDecimals: tokenDecimalsProp || 18,
-      } as const;
+      try {
+        const [paymentToken, pricePerUnit, initialQuantity, remaining] = decodeAbiParameters(
+          [{ type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+          listingDataBytes as Hex,
+        );
+        const isEth = String(paymentToken).toLowerCase() === zeroAddress;
+        return {
+          priceWei: pricePerUnit as bigint,
+          tokenSymbol: isEth ? "ETH" : tokenSymbolProp || "TOKEN",
+          tokenDecimals: tokenDecimalsProp || 18,
+          remainingQuantity: Number(remaining as bigint),
+          limited: (initialQuantity as bigint) > 0n,
+        } as const;
+      } catch {
+        const [paymentToken, price] = decodeAbiParameters(
+          [{ type: "address" }, { type: "uint256" }],
+          listingDataBytes as Hex,
+        );
+        const isEth = String(paymentToken).toLowerCase() === zeroAddress;
+        return {
+          priceWei: price as bigint,
+          tokenSymbol: isEth ? "ETH" : tokenSymbolProp || "TOKEN",
+          tokenDecimals: tokenDecimalsProp || 18,
+          remainingQuantity: undefined,
+          limited: false,
+        } as const;
+      }
     } catch {
-      return { priceWei: 0n, tokenSymbol: tokenSymbolProp || "ETH", tokenDecimals: tokenDecimalsProp || 18 } as const;
+      return {
+        priceWei: 0n,
+        tokenSymbol: tokenSymbolProp || "ETH",
+        tokenDecimals: tokenDecimalsProp || 18,
+        remainingQuantity: undefined,
+        limited: false,
+      } as const;
     }
   }, [listingDataBytes, priceWeiProp, tokenDecimalsProp, tokenSymbolProp]);
   let priceLabel = "";
@@ -109,7 +138,12 @@ export const ListingCard = ({
             ))}
           </div>
         ) : null}
-        <div className="opacity-80 text-sm">{priceLabel}</div>
+        <div className="flex items-center justify-between">
+          <div className="opacity-80 text-sm">{priceLabel}</div>
+          {limited && typeof remainingQuantity === "number" ? (
+            <div className="badge badge-outline badge-sm">{remainingQuantity} left</div>
+          ) : null}
+        </div>
       </div>
     </Link>
   );
