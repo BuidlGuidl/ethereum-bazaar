@@ -207,7 +207,7 @@ const ListingDetailsPageInner = () => {
       if (Array.isArray(raw)) return (raw as any[]).map(v => String(v)).filter(Boolean);
       if (typeof raw === "string")
         return raw
-          .split(",")
+          .split(/\s+/)
           .map(s => s.trim())
           .filter(Boolean);
     } catch {}

@@ -51,7 +51,7 @@ const parseTags = (tags: string[] | string | null): string[] => {
   if (Array.isArray(tags)) return tags.map(String).filter(Boolean);
   if (typeof tags === "string")
     return tags
-      .split(",")
+      .split(/\s+/)
       .map(s => s.trim())
       .filter(Boolean);
   return [];
@@ -505,8 +505,8 @@ const NewListingPageInner = () => {
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm opacity-80">Tags (commas separated)</label>
-          <TagsInput value={tags} onChange={setTags} placeholder="e.g. iphone, mint, boxed" />
+          <label className="text-sm opacity-80">Tags</label>
+          <TagsInput value={tags} onChange={setTags} placeholder="e.g. iphone mint boxed (space separated)" />
         </div>
         <div className="flex items-center gap-3">
           <label className="label cursor-pointer justify-start gap-2 m-0 p-0">
