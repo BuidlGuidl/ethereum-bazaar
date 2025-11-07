@@ -19,7 +19,6 @@ export const listings = onchainTable("listings", (t) => ({
   // Denormalized from metadata
   title: t.text(),
   description: t.text(),
-  category: t.text(),
   image: t.text(),
   contact: t.json(),
   tags: t.json(),

@@ -12,7 +12,7 @@ const LocationPage = () => {
   const [loadingListings, setLoadingListings] = useState(true);
   const [location, setLocation] = useState<any | null>(null);
   const [cachedName, setCachedName] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("");
 
   const refreshDelay = process.env.NEXT_PUBLIC_REFRESH_DELAY ? Number(process.env.NEXT_PUBLIC_REFRESH_DELAY) : 4000;
   // Future: we could store geo/radius for map previews
@@ -113,7 +113,6 @@ const LocationPage = () => {
                   priceWei
                   tokenSymbol
                   tokenDecimals
-                  category
                 }
               }
             }`,
@@ -142,7 +141,6 @@ const LocationPage = () => {
             priceWei: it?.priceWei ?? null,
             tokenSymbol: it?.tokenSymbol ?? null,
             tokenDecimals: it?.tokenDecimals ?? null,
-            category: it?.category ?? null,
           };
         });
         setListings(items);
@@ -193,16 +191,33 @@ const LocationPage = () => {
     return () => clearTimeout(timeout);
   }, [fetchListings, params?.id, refreshDelay]);
 
+  const availableTags = useMemo(() => {
+    const tagSet = listings.reduce((acc: Set<string>, listing) => {
+      if (Array.isArray(listing.tags)) {
+        listing.tags.forEach((tag: string) => {
+          if (tag && typeof tag === "string") {
+            acc.add(tag.toLowerCase());
+          }
+        });
+      }
+      return acc;
+    }, new Set<string>());
+    return Array.from(tagSet).sort();
+  }, [listings]);
+
   const filtered = useMemo(() => {
     const q = (query || "").toLowerCase();
-    const cat = (categoryFilter || "").toLowerCase();
+    const selectedTag = (tagFilter || "").toLowerCase();
 
     return listings.filter(l => {
       if (q && !(l.title || "").toLowerCase().includes(q)) return false;
-      if (cat && String(l.category || "").toLowerCase() !== cat) return false;
+      if (selectedTag) {
+        const listingTags = Array.isArray(l.tags) ? l.tags.map((t: string) => String(t).toLowerCase()) : [];
+        if (!listingTags.includes(selectedTag)) return false;
+      }
       return true;
     });
-  }, [listings, query, categoryFilter]);
+  }, [listings, query, tagFilter]);
 
   return (
     <div className="p-4 space-y-4">
@@ -222,56 +237,39 @@ const LocationPage = () => {
         <details className="dropdown">
           <summary className="btn btn-sm relative">
             Filters
-            {categoryFilter ? <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" /> : null}
+            {tagFilter ? <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" /> : null}
           </summary>
           <div className="menu dropdown-content bg-base-100 rounded-box shadow p-3 mt-2 w-80 space-y-2">
             <div className="space-y-1">
-              <div className="text-sm opacity-80">Category</div>
-              <select
-                className="select select-bordered w-full"
-                value={categoryFilter}
-                onChange={e => {
-                  setCategoryFilter(e.target.value);
-                  try {
-                    const parent = (e.target as HTMLSelectElement).closest("details") as HTMLDetailsElement | null;
-                    if (parent) parent.open = false; // auto close
-                  } catch {}
-                }}
-              >
-                <option value="">All categories</option>
-                <option value="vehicles">Vehicles</option>
-                <option value="housing">Housing & Rooms</option>
-                <option value="furniture">Furniture</option>
-                <option value="appliances">Appliances</option>
-                <option value="electronics">Electronics</option>
-                <option value="tools">Tools & Equipment</option>
-                <option value="garden_outdoor">Garden & Outdoor</option>
-                <option value="home_improvement">Home Improvement</option>
-                <option value="clothing_accessories">Clothing & Accessories</option>
-                <option value="baby_kids">Baby & Kids</option>
-                <option value="sports_fitness">Sports & Fitness</option>
-                <option value="bikes">Bikes</option>
-                <option value="pets">Pets & Supplies</option>
-                <option value="farm_garden">Farm & Garden</option>
-                <option value="business_industrial">Business & Industrial</option>
-                <option value="services">Services</option>
-                <option value="jobs">Jobs</option>
-                <option value="classes">Classes & Lessons</option>
-                <option value="events">Local Events</option>
-                <option value="free_stuff">Free Stuff</option>
-                <option value="lost_found">Lost & Found</option>
-                <option value="community">Community</option>
-                <option value="garage_sales">Garage & Yard Sales</option>
-                <option value="rideshare">Rideshare & Carpool</option>
-                <option value="experiences">Experiences</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="text-sm opacity-80">Tag</div>
+              {availableTags.length > 0 ? (
+                <select
+                  className="select select-bordered w-full"
+                  value={tagFilter}
+                  onChange={e => {
+                    setTagFilter(e.target.value);
+                    try {
+                      const parent = (e.target as HTMLSelectElement).closest("details") as HTMLDetailsElement | null;
+                      if (parent) parent.open = false; // auto close
+                    } catch {}
+                  }}
+                >
+                  <option value="">All tags</option>
+                  {availableTags.map(tag => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-sm opacity-60 py-2">No tags available</div>
+              )}
               <div className="flex justify-end pt-1">
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={e => {
                     e.preventDefault();
-                    setCategoryFilter("");
+                    setTagFilter("");
                     try {
                       const parent = (e.currentTarget as HTMLButtonElement).closest(
                         "details",

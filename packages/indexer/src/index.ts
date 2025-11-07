@@ -208,7 +208,6 @@ ponder.on("Marketplace:ListingCreated" as any, async ({ event, context }) => {
         // Top-level denormalized fields for convenient querying & UI
         title: typeof json?.title === "string" ? json.title : null,
         description: typeof json?.description === "string" ? json.description : null,
-        category: typeof json?.category === "string" ? json.category : null,
         image: typeof json?.image === "string" ? json.image : null,
         contact: typeof json?.contact === "object" ? json.contact : (typeof json?.contact === "string" ? json.contact : null),
         tags: Array.isArray(json?.tags) ? json.tags : (typeof json?.tags === "string" ? json.tags : null),

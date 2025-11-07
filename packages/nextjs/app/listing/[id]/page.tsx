@@ -110,7 +110,6 @@ const ListingDetailsPageInner = () => {
                   active
                   title
                   description
-                  category
                   image
                   contact
                   tags
@@ -154,7 +153,6 @@ const ListingDetailsPageInner = () => {
 
   const title = data?.title || indexed?.title || `Listing ${params?.id}`;
   const description = data?.description || indexed?.description || "";
-  const category = data?.category || indexed?.category || "";
   const active = pointer?.active ?? indexed?.active ?? true;
   const seller = pointer?.creator || indexed?.creator || undefined;
 
@@ -207,7 +205,7 @@ const ListingDetailsPageInner = () => {
       if (Array.isArray(raw)) return (raw as any[]).map(v => String(v)).filter(Boolean);
       if (typeof raw === "string")
         return raw
-          .split(",")
+          .split(/\s+/)
           .map(s => s.trim())
           .filter(Boolean);
     } catch {}
@@ -402,10 +400,8 @@ const ListingDetailsPageInner = () => {
           </div>
         </div>
 
-        {category || tags.length ? (
+        {tags.length ? (
           <div className="flex items-center flex-wrap gap-1">
-            {category ? <span className="opacity-70 text-sm">in {category}</span> : null}
-            {category && tags.length ? <span className="opacity-40 text-xs px-1">|</span> : null}
             {tags.map(t => (
               <span key={t} className="badge badge-secondary badge-sm">
                 {t}
