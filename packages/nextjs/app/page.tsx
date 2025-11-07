@@ -154,12 +154,6 @@ const HomeInner = () => {
 export default function Home() {
   return (
     <Suspense fallback={null}>
-      {/* Early redirect before hydration using localStorage (no data fetch) */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function(){try{var params=new URLSearchParams(window.location.search);if(params.get('home')==='1')return;var raw=localStorage.getItem('marketplace.defaultLocationData');if(!raw)return;var parsed;try{parsed=JSON.parse(raw)}catch(e){parsed=null}var id=parsed&&parsed.id;if(id){window.location.replace('/location/'+encodeURIComponent(id))}}catch(e){}})();`,
-        }}
-      />
       <HomeInner />
     </Suspense>
   );
