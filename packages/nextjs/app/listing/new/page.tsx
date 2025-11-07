@@ -468,28 +468,31 @@ const NewListingPageInner = () => {
           <label className="text-sm opacity-80">Tags</label>
           <TagsInput value={tags} onChange={setTags} placeholder="e.g. iphone mint boxed (space separated)" />
         </div>
-        <div className="flex items-center gap-3">
-          <label className="label cursor-pointer justify-start gap-2 m-0 p-0">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={unlimitedQuantity}
-              onChange={e => setUnlimitedQuantity(e.target.checked)}
-            />
-            <span className="label-text">Unlimited quantity</span>
-          </label>
-          {!unlimitedQuantity ? (
-            <input
-              className="input input-bordered input-sm w-28"
-              placeholder="Quantity"
-              type="number"
-              min={1}
-              value={initialQuantity}
-              onFocus={e => (e.target as HTMLInputElement).select()}
-              onClick={e => (e.currentTarget as HTMLInputElement).select()}
-              onChange={e => setInitialQuantity(e.target.value)}
-            />
-          ) : null}
+        <div className="space-y-1">
+          <label className="text-sm opacity-80">Quantity</label>
+          <div className="flex items-center gap-3">
+            <label className="label cursor-pointer justify-start gap-2 m-0 p-0">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={unlimitedQuantity}
+                onChange={e => setUnlimitedQuantity(e.target.checked)}
+              />
+              <span className="label-text">Unlimited</span>
+            </label>
+            {!unlimitedQuantity ? (
+              <input
+                className="input input-bordered input-sm w-28"
+                placeholder="Quantity"
+                type="number"
+                min={1}
+                value={initialQuantity}
+                onFocus={e => (e.target as HTMLInputElement).select()}
+                onClick={e => (e.currentTarget as HTMLInputElement).select()}
+                onChange={e => setInitialQuantity(e.target.value)}
+              />
+            ) : null}
+          </div>
         </div>
         <div className="space-y-1">
           <label className="text-sm opacity-80 block">Price</label>
