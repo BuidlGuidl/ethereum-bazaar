@@ -4,7 +4,6 @@ export interface ListingData {
   id: string;
   title: string;
   description: string;
-  category: string;
   tags: string[] | string | null;
   price: string;
   currency: string;
@@ -29,7 +28,6 @@ export async function fetchListingById(id: string): Promise<ListingData | null> 
             id
             title
             description
-            category
             tags
             price
             currency

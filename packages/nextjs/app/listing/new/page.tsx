@@ -95,7 +95,6 @@ const NewListingPageInner = () => {
   const { composeCast, isMiniApp } = useMiniapp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("ETH");
@@ -234,7 +233,6 @@ const NewListingPageInner = () => {
     return {
       title,
       description,
-      category,
       tags,
       price,
       currency,
@@ -380,7 +378,6 @@ const NewListingPageInner = () => {
 
         setTitle(item.title || "");
         setDescription(item.description || "");
-        setCategory(item.category || "");
         setPrice(item.price || "");
         setImageCid(item.image);
         setLocationId(item.locationId || "");
@@ -467,43 +464,6 @@ const NewListingPageInner = () => {
           value={description}
           onChange={e => setDescription(e.target.value)}
         />
-        <div className="space-y-1">
-          <label className="text-sm opacity-80">Category</label>
-          <select
-            className="select select-bordered w-full"
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-          >
-            <option value="">Select a category</option>
-            <option value="vehicles">Vehicles</option>
-            <option value="housing">Housing & Rooms</option>
-            <option value="furniture">Furniture</option>
-            <option value="appliances">Appliances</option>
-            <option value="electronics">Electronics</option>
-            <option value="tools">Tools & Equipment</option>
-            <option value="garden_outdoor">Garden & Outdoor</option>
-            <option value="home_improvement">Home Improvement</option>
-            <option value="clothing_accessories">Clothing & Accessories</option>
-            <option value="baby_kids">Baby & Kids</option>
-            <option value="sports_fitness">Sports & Fitness</option>
-            <option value="bikes">Bikes</option>
-            <option value="pets">Pets & Supplies</option>
-            <option value="farm_garden">Farm & Garden</option>
-            <option value="business_industrial">Business & Industrial</option>
-            <option value="services">Services</option>
-            <option value="jobs">Jobs</option>
-            <option value="classes">Classes & Lessons</option>
-            <option value="events">Local Events</option>
-            <option value="free_stuff">Free Stuff</option>
-            <option value="lost_found">Lost & Found</option>
-            <option value="community">Community</option>
-            <option value="garage_sales">Garage & Yard Sales</option>
-            <option value="rideshare">Rideshare & Carpool</option>
-            <option value="experiences">Experiences</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
         <div className="space-y-1">
           <label className="text-sm opacity-80">Tags</label>
           <TagsInput value={tags} onChange={setTags} placeholder="e.g. iphone mint boxed (space separated)" />
