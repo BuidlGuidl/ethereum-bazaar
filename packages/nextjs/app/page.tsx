@@ -137,7 +137,24 @@ const HomeInner = () => {
                     }}
                   >
                     <div className="card-body p-3">
-                      <div className="card-title text-base">{l.name || l.id}</div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="card-title text-base">{l.name || l.id}</div>
+                          <div className="text-sm opacity-70 mt-1">
+                            {l.activeListingsCount !== undefined ? (
+                              <>
+                                {l.activeListingsCount === 0 ? (
+                                  <span className="opacity-50">No active listings</span>
+                                ) : (
+                                  <span>
+                                    {l.activeListingsCount} {l.activeListingsCount === 1 ? "listing" : "listings"}
+                                  </span>
+                                )}
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </button>
                 ))}
