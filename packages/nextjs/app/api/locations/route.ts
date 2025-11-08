@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+import { fetchActiveListings } from "~~/services/marketplace/graphql";
 
 const redis = Redis.fromEnv();
 const GEO_KEY = "locations:geo";
@@ -11,6 +12,33 @@ function milesToMeters(miles: number) {
 function idFor(lat: number, lng: number, miles: number) {
   // stable id based on coords+radius
   return `loc:${lat.toFixed(5)}:${lng.toFixed(5)}:${miles.toFixed(2)}`;
+}
+
+async function getListingCountsByLocation(): Promise<Record<string, number>> {
+  try {
+    const items = await fetchActiveListings();
+
+    if (items.length === 0) {
+      return {};
+    }
+
+    const counts: Record<string, number> = {};
+
+    for (const item of items) {
+      const locationId = item?.locationId;
+      if (locationId && typeof locationId === "string") {
+        const normalizedId = locationId.trim();
+        if (normalizedId) {
+          counts[normalizedId] = (counts[normalizedId] || 0) + 1;
+        }
+      }
+    }
+
+    return counts;
+  } catch (error: any) {
+    console.error("[getListingCountsByLocation] Error:", error?.message || String(error));
+    return {};
+  }
 }
 
 export async function GET(req: Request) {
@@ -83,6 +111,27 @@ export async function GET(req: Request) {
         return name.includes(q) || id.includes(q) || akaMatch;
       });
     }
+
+    const listingCounts = await getListingCountsByLocation();
+
+    locations = locations.map((loc: any) => {
+      const locationId = String(loc?.id || "").trim();
+      const count = locationId ? listingCounts[locationId] || 0 : 0;
+
+      return { ...loc, activeListingsCount: count };
+    });
+
+    locations.sort((a: any, b: any) => {
+      const countA = a.activeListingsCount || 0;
+      const countB = b.activeListingsCount || 0;
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      const nameA = (a.name || a.id || "").toLowerCase();
+      const nameB = (b.name || b.id || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
     return NextResponse.json({ locations: locations.slice(0, limit) });
   } catch (e: any) {
     if (String(e?.message || "").includes("Unexpected non-whitespace character after JSON")) {

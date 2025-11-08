@@ -50,3 +50,46 @@ export async function fetchListingById(id: string): Promise<ListingData | null> 
   const item = json?.data?.listings || null;
   return item;
 }
+
+export interface ActiveListing {
+  id: string;
+  locationId: string | null;
+}
+
+export async function fetchActiveListings(): Promise<ActiveListing[]> {
+  const res = await fetch(PONDER_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      query: `
+        query ActiveListings {
+          listingss(
+            where: { active: true }
+          ) {
+            items {
+              id
+              locationId
+            }
+          }
+        }
+      `,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`GraphQL request failed with status ${res.status}`);
+  }
+
+  const json = await res.json();
+
+  if (json.errors) {
+    throw new Error(`GraphQL errors: ${JSON.stringify(json.errors, null, 2)}`);
+  }
+
+  const data = json?.data;
+  if (!data) {
+    throw new Error(`No data in response: ${JSON.stringify(json, null, 2)}`);
+  }
+
+  return data?.listingss?.items || [];
+}
