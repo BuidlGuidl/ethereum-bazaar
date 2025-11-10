@@ -8,7 +8,7 @@ import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
 export interface ListingCardProps {
   id: string | number;
   title: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   tags?: string[];
   priceWei?: string | bigint | null;
   tokenSymbol?: string | null;

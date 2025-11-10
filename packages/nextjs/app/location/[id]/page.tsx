@@ -1,23 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ListingCard } from "~~/components/marketplace/ListingCard";
 import MapRadius from "~~/components/marketplace/MapRadiusGL";
+import { useListingsByLocation } from "~~/hooks/marketplace/useListingsByLocation";
 
 const LocationPage = () => {
   const params = useParams<{ id: string }>();
   const [query, setQuery] = useState("");
-  const [listings, setListings] = useState<any[]>([]);
-  const [loadingListings, setLoadingListings] = useState(true);
   const [location, setLocation] = useState<any | null>(null);
   const [cachedName, setCachedName] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string>("");
 
-  const refreshDelay = process.env.NEXT_PUBLIC_REFRESH_DELAY ? Number(process.env.NEXT_PUBLIC_REFRESH_DELAY) : 4000;
-  // Future: we could store geo/radius for map previews
-  const hasRefreshedRef = useRef(false);
+  const locationId = params?.id ? decodeURIComponent(params.id) : null;
+  const { data: listings = [], isLoading: loadingListings } = useListingsByLocation(locationId);
 
   useEffect(() => {
     const run = async () => {
@@ -95,111 +93,6 @@ const LocationPage = () => {
     };
     run();
   }, [params?.id, cachedName]);
-
-  // Fetch listings for this location from Ponder GraphQL
-  const fetchListings = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      const id = decodeURIComponent(params?.id as string);
-      if (!id) return;
-      if (!opts?.silent) setLoadingListings(true);
-      try {
-        const res = await fetch(process.env.NEXT_PUBLIC_PONDER_URL || "http://localhost:42069/graphql", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            query: `
-            query ListingsByLocation($loc: String!) {
-              listingss(
-                where: { locationId: $loc, active: true }
-                orderBy: "createdBlockNumber"
-                orderDirection: "desc"
-                limit: 100
-              ) {
-                items {
-                  id
-                  title
-                  image
-                  tags
-                  priceWei
-                  tokenSymbol
-                  tokenDecimals
-                }
-              }
-            }`,
-            variables: { loc: id },
-          }),
-        });
-        const json = await res.json();
-        const items = (json?.data?.listingss?.items || []).map((it: any) => {
-          let tags: string[] = [];
-          try {
-            const raw = (it as any)?.tags;
-            if (Array.isArray(raw)) {
-              tags = raw.map((t: any) => String(t)).filter(Boolean);
-            } else if (typeof raw === "string" && raw) {
-              try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) tags = parsed.map((t: any) => String(t)).filter(Boolean);
-              } catch {}
-            }
-          } catch {}
-          return {
-            id: it.id,
-            title: it?.title ?? it.id,
-            image: it?.image ?? null,
-            tags,
-            priceWei: it?.priceWei ?? null,
-            tokenSymbol: it?.tokenSymbol ?? null,
-            tokenDecimals: it?.tokenDecimals ?? null,
-          };
-        });
-        setListings(items);
-      } catch {
-        setListings([]);
-      } finally {
-        if (!opts?.silent) setLoadingListings(false);
-      }
-    },
-    [params?.id],
-  );
-
-  useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
-
-  // One-time delayed refresh ~Xs after landing
-  useEffect(() => {
-    hasRefreshedRef.current = false;
-    const timeout = setTimeout(() => {
-      if (!hasRefreshedRef.current) {
-        hasRefreshedRef.current = true;
-        const doc = document.documentElement;
-        const wasAtTop = window.scrollY === 0;
-        const prevFromBottom = Math.max(0, doc.scrollHeight - window.scrollY - window.innerHeight);
-        fetchListings({ silent: true }).finally(() => {
-          // Restore position relative to bottom to account for new content height
-          // Double rAF to ensure layout has settled after state updates
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              if (wasAtTop) {
-                return;
-              }
-              const newDoc = document.documentElement;
-              const targetTop = Math.max(
-                0,
-                Math.min(
-                  newDoc.scrollHeight - window.innerHeight,
-                  newDoc.scrollHeight - prevFromBottom - window.innerHeight,
-                ),
-              );
-              window.scrollTo({ top: targetTop, left: 0, behavior: "auto" });
-            });
-          });
-        });
-      }
-    }, refreshDelay);
-    return () => clearTimeout(timeout);
-  }, [fetchListings, params?.id, refreshDelay]);
 
   const availableTags = useMemo(() => {
     const tagSet = listings.reduce((acc: Set<string>, listing) => {
@@ -301,7 +194,7 @@ const LocationPage = () => {
             </div>
           </div>
         </details>
-        <Link href={`/listing/new?loc=${encodeURIComponent(params?.id as string)}`} className="btn btn-sm btn-primary">
+        <Link href={`/listing/new?loc=${encodeURIComponent(locationId || "")}`} className="btn btn-sm btn-primary">
           Create Listing
         </Link>
       </div>
