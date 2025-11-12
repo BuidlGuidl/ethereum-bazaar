@@ -2,11 +2,13 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { encodeAbiParameters, isAddress, keccak256, parseEther, parseUnits, stringToHex, zeroAddress } from "viem";
 import { useReadContract } from "wagmi";
 import { useMiniapp } from "~~/components/MiniappProvider";
 import { IPFSUploader } from "~~/components/marketplace/IPFSUploader";
 import { TagsInput } from "~~/components/marketplace/TagsInput";
+import type { Listing } from "~~/hooks/marketplace/useListingsByLocation";
 import { useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 // import { resolveIpfsUrl } from "~~/services/ipfs/fetch";
@@ -88,6 +90,7 @@ const parseContactEntries = (
 const NewListingPageInner = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const editingId = useMemo(() => {
     const v = searchParams.get("edit");
     return v ? v : null;
@@ -325,6 +328,44 @@ const NewListingPageInner = () => {
           blockConfirmations: 1,
           onBlockConfirmation: receipt => {
             const newId = extractListingId(receipt);
+            if (newId && locationId) {
+              const priceWei = !(isCustomToken || isKnownToken)
+                ? parseEther(price || "0")
+                : parseUnits(price || "0", decimalsOverride ?? 18);
+
+              let tokenSymbol: string = "ETH";
+              if (isCustomToken) {
+                tokenSymbol = (tokenSymbolData as string | undefined) || "TOKEN";
+              } else if (isKnownToken) {
+                tokenSymbol = currency;
+              }
+
+              const tokenDecimals = decimalsOverride ?? 18;
+
+              const optimisticListing: Listing = {
+                id: newId,
+                title: title.trim() || newId,
+                image: finalImageCid,
+                tags: tags.filter(Boolean),
+                priceWei: priceWei.toString(),
+                tokenSymbol,
+                tokenDecimals,
+                isOptimistic: true,
+              };
+
+              queryClient.setQueryData<Listing[]>(["listings", "location", locationId], oldData => {
+                if (oldData) {
+                  const filtered = oldData.filter(l => l.id !== newId);
+                  return [optimisticListing, ...filtered];
+                }
+                return [optimisticListing];
+              });
+
+              queryClient.invalidateQueries({
+                queryKey: ["listings", "location", locationId],
+              });
+            }
+
             router.push(`/location/${encodeURIComponent(locationId)}`);
             if (newId) shareListingCast(newId);
           },
