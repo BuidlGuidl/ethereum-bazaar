@@ -18,6 +18,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   const ponderUrl = process.env.NEXT_PUBLIC_PONDER_URL || "http://localhost:42069/graphql";
 
   let title = `Listing ${id}`;
+  let description: string | undefined;
   let imageUrl: string | undefined;
 
   try {
@@ -44,6 +45,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       const listing = json?.data?.listings ?? null;
       if (listing) {
         title = listing.title || title;
+        description = listing.description || undefined;
         const resolved = resolveIpfsUrl(listing.image) || listing.image;
         if (resolved && typeof resolved === "string") imageUrl = resolved;
       }
@@ -51,16 +53,20 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   } catch {}
 
   const fallbackImage = `${baseUrl}/thumbnail.jpg`;
+  const listingUrl = `${baseUrl}/listing/${id}`;
+  const displayTitle = `${title} | Ethereum Bazaar`;
+  const displayDescription = description || `View this listing on Ethereum Bazaar`;
+  imageUrl = imageUrl || process.env.NEXT_PUBLIC_IMAGE_URL || fallbackImage;
 
   const embedMiniapp = {
     version: "1",
-    imageUrl: imageUrl || process.env.NEXT_PUBLIC_IMAGE_URL || fallbackImage,
+    imageUrl: imageUrl,
     button: {
       title: "View Listing",
       action: {
         name: title,
         type: "launch_miniapp",
-        url: `${baseUrl}/listing/${id}`,
+        url: listingUrl,
         splashImageUrl: `${baseUrl}/EBicon.png`,
         splashBackgroundColor: "#f8f5f0",
       },
@@ -68,10 +74,27 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   };
 
   return {
-    title: `${title} | View Listing`,
+    metadataBase: new URL(baseUrl),
+    title: displayTitle,
+    description: displayDescription,
     openGraph: {
-      title: `${title} | View Listing`,
-      images: [imageUrl || fallbackImage],
+      type: "website",
+      url: listingUrl,
+      title: displayTitle,
+      description: displayDescription,
+      siteName: "Ethereum Bazaar",
+      images: [
+        {
+          url: imageUrl,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: displayTitle,
+      description: displayDescription,
+      images: [imageUrl],
     },
     other: {
       "fc:miniapp": JSON.stringify(embedMiniapp),
